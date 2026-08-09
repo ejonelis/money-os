@@ -1,0 +1,103 @@
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { requireHouseholdId } from "@/lib/household";
+
+const billSchema = z.object({
+  description: z.string().trim().min(1, "Description is required."),
+  account_id: z.string().uuid("Choose an account."),
+  frequency: z.enum(["yearly", "monthly", "weekly"]),
+  amount: z.coerce.number().positive("Amount must be greater than 0."),
+  next_due_date: z.string().min(1, "Next due date is required."),
+});
+
+export type SavedBill = {
+  id: string;
+  description: string;
+  account_id: string;
+  frequency: "yearly" | "monthly" | "weekly";
+  amount: number;
+  next_due_date: string;
+  active: boolean;
+};
+
+export type BillFormState = { error?: string; bill?: SavedBill } | undefined;
+
+const BILL_COLUMNS =
+  "id, description, account_id, frequency, amount, next_due_date, active";
+
+function parseForm(formData: FormData) {
+  return billSchema.safeParse({
+    description: formData.get("description"),
+    account_id: formData.get("account_id"),
+    frequency: formData.get("frequency"),
+    amount: formData.get("amount"),
+    next_due_date: formData.get("next_due_date"),
+  });
+}
+
+export async function createBill(
+  _prevState: BillFormState,
+  formData: FormData,
+): Promise<BillFormState> {
+  const parsed = parseForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const householdId = await requireHouseholdId();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("recurring_rules")
+    .insert({ household_id: householdId, ...parsed.data })
+    .select(BILL_COLUMNS)
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Could not create bill." };
+  }
+
+  revalidatePath("/bills");
+  return { bill: data as SavedBill };
+}
+
+export async function updateBill(
+  id: string,
+  _prevState: BillFormState,
+  formData: FormData,
+): Promise<BillFormState> {
+  const parsed = parseForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("recurring_rules")
+    .update(parsed.data)
+    .eq("id", id)
+    .select(BILL_COLUMNS)
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Could not update bill." };
+  }
+
+  revalidatePath("/bills");
+  return { bill: data as SavedBill };
+}
+
+export async function setBillActive(id: string, active: boolean) {
+  const supabase = await createClient();
+  await supabase.from("recurring_rules").update({ active }).eq("id", id);
+  revalidatePath("/bills");
+}
+
+export async function deleteBill(id: string) {
+  const supabase = await createClient();
+  await supabase.from("recurring_rules").delete().eq("id", id);
+  revalidatePath("/bills");
+}
