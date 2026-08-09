@@ -9,7 +9,7 @@ import {
   type BillFormState,
   type SavedBill,
 } from "./actions";
-import { occurrencesInMonth } from "@/lib/recurrence";
+import { FREQUENCIES, FREQUENCY_LABELS, occurrencesInMonth } from "@/lib/recurrence";
 
 type Bill = SavedBill;
 
@@ -194,7 +194,7 @@ export function BillsClient({
                 >
                   <td className="px-3 py-2">{bill.description}</td>
                   <td className="px-3 py-2 text-foreground/60">{accountName(bill.account_id)}</td>
-                  <td className="px-3 py-2 capitalize text-foreground/60">{bill.frequency}</td>
+                  <td className="px-3 py-2 text-foreground/60">{FREQUENCY_LABELS[bill.frequency]}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{currency.format(bill.amount)}</td>
                   <td className="px-3 py-2 tabular-nums">{formatDate(bill.next_due_date)}</td>
                   <td className="px-3 py-2">
@@ -419,9 +419,11 @@ function BillFormModal({
                 defaultValue={bill?.frequency ?? "monthly"}
                 className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
               >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-                <option value="weekly">Weekly</option>
+                {FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>
+                    {FREQUENCY_LABELS[f]}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

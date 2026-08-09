@@ -1,4 +1,29 @@
-export type Frequency = "yearly" | "monthly" | "weekly";
+export const FREQUENCIES = [
+  "weekly",
+  "monthly",
+  "bimonthly",
+  "quarterly",
+  "yearly",
+] as const;
+
+export type Frequency = (typeof FREQUENCIES)[number];
+
+export const FREQUENCY_LABELS: Record<Frequency, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  bimonthly: "Every 2 months",
+  quarterly: "Quarterly",
+  yearly: "Yearly",
+};
+
+// Every non-weekly frequency is "every N months" — monthly is just N=1 and
+// yearly is N=12, so they all share one code path below.
+const MONTH_STEP: Record<Exclude<Frequency, "weekly">, number> = {
+  monthly: 1,
+  bimonthly: 2,
+  quarterly: 3,
+  yearly: 12,
+};
 
 export type RecurringRuleLike = {
   frequency: Frequency;
@@ -49,13 +74,10 @@ export function occurrencesInMonth(
     return [];
   }
 
-  if (rule.frequency === "monthly") {
-    const d = Math.min(anchor.d, daysInMonth(year, month));
-    return [toISO(year, month, d)];
-  }
-
-  if (rule.frequency === "yearly") {
-    if (month !== anchor.m) return [];
+  if (rule.frequency !== "weekly") {
+    const step = MONTH_STEP[rule.frequency];
+    const monthDiff = (year - anchor.y) * 12 + (month - anchor.m);
+    if (monthDiff % step !== 0) return [];
     const d = Math.min(anchor.d, daysInMonth(year, month));
     return [toISO(year, month, d)];
   }

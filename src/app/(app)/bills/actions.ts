@@ -4,11 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireHouseholdId } from "@/lib/household";
+import { FREQUENCIES, type Frequency } from "@/lib/recurrence";
 
 const billSchema = z.object({
   description: z.string().trim().min(1, "Description is required."),
   account_id: z.string().uuid("Choose an account."),
-  frequency: z.enum(["yearly", "monthly", "weekly"]),
+  frequency: z.enum(FREQUENCIES),
   amount: z.coerce.number().positive("Amount must be greater than 0."),
   next_due_date: z.string().min(1, "Next due date is required."),
 });
@@ -17,7 +18,7 @@ export type SavedBill = {
   id: string;
   description: string;
   account_id: string;
-  frequency: "yearly" | "monthly" | "weekly";
+  frequency: Frequency;
   amount: number;
   next_due_date: string;
   active: boolean;
