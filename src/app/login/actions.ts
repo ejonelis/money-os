@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 
 type SignInState = { error?: string; success?: boolean } | undefined;
 
+// Money OS is a two-person household app, not a public sign-up product —
+// only these two accounts should ever exist.
+const ALLOWED_EMAILS = ["e.jonelis@gmail.com", "a.jonele@gmail.com"];
+
 async function siteOrigin() {
   const headersList = await headers();
   const host = headersList.get("host");
@@ -23,6 +27,10 @@ export async function signInWithEmail(
     return { error: "Enter an email address." };
   }
 
+  if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+    return { error: "This is a private household app — that email isn't on the list." };
+  }
+
   const supabase = await createClient();
   const origin = await siteOrigin();
 
@@ -30,6 +38,7 @@ export async function signInWithEmail(
     email,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      shouldCreateUser: false,
     },
   });
 
