@@ -1,13 +1,51 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { signInWithPassword } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState(
     signInWithPassword,
     undefined,
   );
+  const router = useRouter();
+  const [recovering, setRecovering] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // Admin-generated password-setup links use the implicit hash-fragment
+  // flow (#access_token=...), which never reaches the server — unlike the
+  // ?code= flow our /auth/callback route handles. This has to run client-side.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("access_token") || !hash.includes("type=recovery")) {
+      return;
+    }
+
+    const params = new URLSearchParams(hash.slice(1));
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+    if (!access_token || !refresh_token) return;
+
+    startTransition(() => setRecovering(true));
+    const supabase = createClient();
+    supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+      if (!error) {
+        router.replace("/account/set-password");
+      } else {
+        setRecovering(false);
+      }
+    });
+  }, [router]);
+
+  if (recovering) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+        <p className="text-sm text-foreground/60">Signing you in…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
