@@ -1,30 +1,24 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-type SignInState = { error?: string; success?: boolean } | undefined;
+type SignInState = { error?: string } | undefined;
 
 // Money OS is a two-person household app, not a public sign-up product —
-// only these two accounts should ever exist.
+// only these two accounts exist, and password sign-in never creates new
+// ones, so this is a defense-in-depth check, not the only gate.
 const ALLOWED_EMAILS = ["e.jonelis@gmail.com", "a.jonele@gmail.com"];
 
-async function siteOrigin() {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const protocol = headersList.get("x-forwarded-proto") ?? "http";
-  return `${protocol}://${host}`;
-}
-
-export async function signInWithEmail(
+export async function signInWithPassword(
   _prevState: SignInState,
   formData: FormData,
 ): Promise<SignInState> {
   const email = (formData.get("email") as string | null)?.trim();
+  const password = formData.get("password") as string | null;
 
-  if (!email) {
-    return { error: "Enter an email address." };
+  if (!email || !password) {
+    return { error: "Enter your email and password." };
   }
 
   if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
@@ -32,21 +26,13 @@ export async function signInWithEmail(
   }
 
   const supabase = await createClient();
-  const origin = await siteOrigin();
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-      shouldCreateUser: false,
-    },
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: error.message };
+    return { error: "Wrong email or password." };
   }
 
-  return { success: true };
+  redirect("/dashboard");
 }
 
 export async function signOut() {

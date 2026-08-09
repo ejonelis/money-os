@@ -39,7 +39,12 @@ export default async function AppLayout({
             </Link>
           </nav>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-foreground/60">{user.email}</span>
+            <Link
+              href="/account/set-password"
+              className="text-sm text-foreground/60 hover:text-foreground"
+            >
+              {user.email}
+            </Link>
             <form action={signOut}>
               <button
                 type="submit"
