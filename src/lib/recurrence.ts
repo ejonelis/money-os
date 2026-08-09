@@ -93,3 +93,33 @@ export function occurrencesInMonth(
   }
   return dates;
 }
+
+/**
+ * Returns every occurrence of this rule between fromISO and toISO
+ * (inclusive), for materializing a forward ledger. Walks month by month
+ * and reuses occurrencesInMonth, so it inherits the same forward-only
+ * behavior.
+ */
+export function occurrencesInRange(
+  rule: RecurringRuleLike,
+  fromISO: string,
+  throughISO: string,
+): string[] {
+  const from = parseISODate(fromISO);
+  const through = parseISODate(throughISO);
+  const dates: string[] = [];
+
+  let y = from.y;
+  let m = from.m;
+  while (y < through.y || (y === through.y && m <= through.m)) {
+    for (const iso of occurrencesInMonth(rule, y, m)) {
+      if (iso >= fromISO && iso <= throughISO) dates.push(iso);
+    }
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return dates;
+}

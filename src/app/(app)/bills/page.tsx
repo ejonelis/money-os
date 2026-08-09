@@ -10,7 +10,7 @@ export default async function BillsPage() {
     await Promise.all([
       supabase
         .from("recurring_rules")
-        .select("id, description, account_id, frequency, amount, next_due_date, active")
+        .select("id, description, account_id, kind, frequency, amount, next_due_date, active")
         .eq("household_id", householdId)
         .order("next_due_date", { ascending: true }),
       supabase

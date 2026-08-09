@@ -9,15 +9,19 @@ import { FREQUENCIES, type Frequency } from "@/lib/recurrence";
 const billSchema = z.object({
   description: z.string().trim().min(1, "Description is required."),
   account_id: z.string().uuid("Choose an account."),
+  kind: z.enum(["expense", "income"]),
   frequency: z.enum(FREQUENCIES),
   amount: z.coerce.number().positive("Amount must be greater than 0."),
   next_due_date: z.string().min(1, "Next due date is required."),
 });
 
+export type BillKind = "expense" | "income";
+
 export type SavedBill = {
   id: string;
   description: string;
   account_id: string;
+  kind: BillKind;
   frequency: Frequency;
   amount: number;
   next_due_date: string;
@@ -27,12 +31,13 @@ export type SavedBill = {
 export type BillFormState = { error?: string; bill?: SavedBill } | undefined;
 
 const BILL_COLUMNS =
-  "id, description, account_id, frequency, amount, next_due_date, active";
+  "id, description, account_id, kind, frequency, amount, next_due_date, active";
 
 function parseForm(formData: FormData) {
   return billSchema.safeParse({
     description: formData.get("description"),
     account_id: formData.get("account_id"),
+    kind: formData.get("kind"),
     frequency: formData.get("frequency"),
     amount: formData.get("amount"),
     next_due_date: formData.get("next_due_date"),
@@ -62,6 +67,7 @@ export async function createBill(
   }
 
   revalidatePath("/bills");
+  revalidatePath("/forecast");
   return { bill: data as SavedBill };
 }
 
@@ -88,6 +94,7 @@ export async function updateBill(
   }
 
   revalidatePath("/bills");
+  revalidatePath("/forecast");
   return { bill: data as SavedBill };
 }
 
@@ -95,10 +102,12 @@ export async function setBillActive(id: string, active: boolean) {
   const supabase = await createClient();
   await supabase.from("recurring_rules").update({ active }).eq("id", id);
   revalidatePath("/bills");
+  revalidatePath("/forecast");
 }
 
 export async function deleteBill(id: string) {
   const supabase = await createClient();
   await supabase.from("recurring_rules").delete().eq("id", id);
   revalidatePath("/bills");
+  revalidatePath("/forecast");
 }

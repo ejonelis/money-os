@@ -20,6 +20,16 @@ const currency = new Intl.NumberFormat("en-IE", {
   currency: "EUR",
 });
 
+function signedAmount(bill: Bill) {
+  return bill.kind === "income" ? bill.amount : -bill.amount;
+}
+
+function formatSigned(bill: Bill) {
+  const amount = signedAmount(bill);
+  const formatted = currency.format(Math.abs(amount));
+  return amount >= 0 ? `+${formatted}` : `-${formatted}`;
+}
+
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IE", {
@@ -118,10 +128,10 @@ export function BillsClient({
     return map;
   }, [bills, calendarYear, calendarMonth]);
 
-  const monthTotal = useMemo(() => {
+  const monthNet = useMemo(() => {
     let total = 0;
     for (const list of monthOccurrences.values()) {
-      for (const b of list) total += b.amount;
+      for (const b of list) total += signedAmount(b);
     }
     return total;
   }, [monthOccurrences]);
@@ -195,7 +205,11 @@ export function BillsClient({
                   <td className="px-3 py-2">{bill.description}</td>
                   <td className="px-3 py-2 text-foreground/60">{accountName(bill.account_id)}</td>
                   <td className="px-3 py-2 text-foreground/60">{FREQUENCY_LABELS[bill.frequency]}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{currency.format(bill.amount)}</td>
+                  <td
+                    className={`px-3 py-2 text-right tabular-nums ${bill.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                  >
+                    {formatSigned(bill)}
+                  </td>
                   <td className="px-3 py-2 tabular-nums">{formatDate(bill.next_due_date)}</td>
                   <td className="px-3 py-2">
                     <button
@@ -242,7 +256,12 @@ export function BillsClient({
               <div className="font-medium">
                 {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
               </div>
-              <div className="text-xs text-foreground/60">{currency.format(monthTotal)} total</div>
+              <div
+                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"}`}
+              >
+                {monthNet >= 0 ? "+" : "-"}
+                {currency.format(Math.abs(monthNet))} net
+              </div>
             </div>
             <button onClick={() => shiftMonth(1)} className="rounded-md border border-foreground/15 px-2 py-1 text-sm">
               →
@@ -342,10 +361,14 @@ function CalendarGrid({
                       <button
                         key={b.id}
                         onClick={() => onSelectBill(b)}
-                        className="block w-full truncate rounded bg-foreground/10 px-1 py-0.5 text-left text-[11px] leading-tight hover:bg-foreground/20"
-                        title={`${b.description} — ${currency.format(b.amount)}`}
+                        className={`block w-full truncate rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:bg-foreground/20 ${
+                          b.kind === "income"
+                            ? "bg-emerald-600/10 text-emerald-600 dark:text-emerald-400"
+                            : "bg-foreground/10"
+                        }`}
+                        title={`${b.description} — ${formatSigned(b)}`}
                       >
-                        {b.description} · {currency.format(b.amount)}
+                        {b.description} · {formatSigned(b)}
                       </button>
                     ))}
                   </div>
@@ -413,17 +436,14 @@ function BillFormModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">Frequency</label>
+              <label className="mb-1 block text-xs text-foreground/60">Type</label>
               <select
-                name="frequency"
-                defaultValue={bill?.frequency ?? "monthly"}
+                name="kind"
+                defaultValue={bill?.kind ?? "expense"}
                 className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
               >
-                {FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>
-                    {FREQUENCY_LABELS[f]}
-                  </option>
-                ))}
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
               </select>
             </div>
             <div>
@@ -438,6 +458,20 @@ function BillFormModal({
                 className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
               />
             </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-foreground/60">Frequency</label>
+            <select
+              name="frequency"
+              defaultValue={bill?.frequency ?? "monthly"}
+              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+            >
+              {FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {FREQUENCY_LABELS[f]}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-xs text-foreground/60">Next due date</label>
