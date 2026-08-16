@@ -111,7 +111,7 @@ export function ForecastClient({
         </div>
         <button
           onClick={() => setEditingTx("new")}
-          className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background"
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
         >
           Add entry
         </button>
@@ -122,10 +122,10 @@ export function ForecastClient({
           <Link
             key={a.id}
             href={`/forecast?account=${a.id}`}
-            className={`rounded px-3 py-1 text-sm ${
+            className={`rounded px-3 py-1 text-sm transition-colors ${
               a.id === selectedAccountId
-                ? "bg-foreground text-background"
-                : "text-foreground/60"
+                ? "bg-accent text-white"
+                : "text-foreground/60 hover:text-accent"
             }`}
           >
             {a.name}
@@ -186,12 +186,12 @@ export function ForecastClient({
                     <button
                       onClick={() => handleToggleStatus(tx)}
                       disabled={isPending}
-                      className={`text-xs underline decoration-dotted ${
+                      className={`text-xs underline decoration-dotted transition-colors ${
                         overdue
-                          ? "text-amber-600 dark:text-amber-400"
+                          ? "text-amber-600 hover:text-accent dark:text-amber-400"
                           : tx.status === "actual"
                             ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-foreground/60"
+                            : "text-foreground/60 hover:text-accent"
                       }`}
                     >
                       {tx.status === "actual" ? "cleared" : "planned"}
@@ -200,13 +200,13 @@ export function ForecastClient({
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => setEditingTx(tx)}
-                      className="mr-3 text-xs text-foreground/60 hover:text-foreground"
+                      className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(tx.id)}
-                      className="text-xs text-red-500 hover:text-red-400"
+                      className="text-xs text-red-500 transition-colors hover:text-red-400"
                     >
                       Delete
                     </button>
@@ -335,14 +335,14 @@ function TransactionFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-foreground/15 px-3 py-1.5 text-sm"
+              className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-50"
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
               {pending ? "Saving…" : "Save"}
             </button>

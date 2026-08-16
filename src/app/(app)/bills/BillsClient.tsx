@@ -161,7 +161,7 @@ export function BillsClient({
         </div>
         <button
           onClick={() => setEditingBill("new")}
-          className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background"
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
         >
           Add bill
         </button>
@@ -170,13 +170,13 @@ export function BillsClient({
       <div className="flex items-center gap-1 rounded-md border border-foreground/15 p-1 w-fit">
         <button
           onClick={() => setView("list")}
-          className={`rounded px-3 py-1 text-sm ${view === "list" ? "bg-foreground text-background" : "text-foreground/60"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
         >
           List
         </button>
         <button
           onClick={() => setView("calendar")}
-          className={`rounded px-3 py-1 text-sm ${view === "calendar" ? "bg-foreground text-background" : "text-foreground/60"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
         >
           Calendar
         </button>
@@ -214,7 +214,7 @@ export function BillsClient({
                   <td className="px-3 py-2">
                     <button
                       onClick={() => handleToggleActive(bill)}
-                      className="text-xs underline decoration-dotted text-foreground/60"
+                      className="text-xs underline decoration-dotted text-foreground/60 transition-colors hover:text-accent"
                       disabled={isPending}
                     >
                       {bill.active ? "active" : "paused"}
@@ -223,13 +223,13 @@ export function BillsClient({
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => setEditingBill(bill)}
-                      className="text-xs text-foreground/60 hover:text-foreground mr-3"
+                      className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(bill.id)}
-                      className="text-xs text-red-500 hover:text-red-400"
+                      className="text-xs text-red-500 transition-colors hover:text-red-400"
                     >
                       Delete
                     </button>
@@ -249,7 +249,10 @@ export function BillsClient({
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <button onClick={() => shiftMonth(-1)} className="rounded-md border border-foreground/15 px-2 py-1 text-sm">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="rounded-md border border-accent/30 px-2 py-1 text-sm text-accent transition-colors hover:bg-accent/10"
+            >
               ←
             </button>
             <div className="text-center">
@@ -263,7 +266,10 @@ export function BillsClient({
                 {currency.format(Math.abs(monthNet))} net
               </div>
             </div>
-            <button onClick={() => shiftMonth(1)} className="rounded-md border border-foreground/15 px-2 py-1 text-sm">
+            <button
+              onClick={() => shiftMonth(1)}
+              className="rounded-md border border-accent/30 px-2 py-1 text-sm text-accent transition-colors hover:bg-accent/10"
+            >
               →
             </button>
           </div>
@@ -306,7 +312,7 @@ function Th({
 }) {
   return (
     <th className={`px-3 py-2 font-normal ${align === "right" ? "text-right" : ""}`}>
-      <button onClick={onClick} className="hover:text-foreground">
+      <button onClick={onClick} className="transition-colors hover:text-accent">
         {label}
         {active ? (dir === "asc" ? " ↑" : " ↓") : ""}
       </button>
@@ -488,14 +494,14 @@ function BillFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-foreground/15 px-3 py-1.5 text-sm"
+              className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-50"
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
               {pending ? "Saving…" : "Save"}
             </button>

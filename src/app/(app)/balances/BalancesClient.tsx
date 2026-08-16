@@ -296,7 +296,7 @@ function DailyEntryForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-50"
+        className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
       >
         {pending ? "Saving…" : "Save balances"}
       </button>
