@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/forecast", label: "Forecast" },
   { href: "/bills", label: "Monthly Bills" },
   { href: "/balances", label: "Balances" },
+  { href: "/networth", label: "Net Worth" },
 ];
 
 export function AppNav({
