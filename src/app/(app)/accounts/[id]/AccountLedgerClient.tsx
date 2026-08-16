@@ -1,14 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import {
-  addTransaction,
-  deleteTransaction,
-  setTransactionStatus,
-  updateTransaction,
+  addLedgerEntry,
+  deleteLedgerEntry,
+  updateLedgerEntry,
   type SavedTransaction,
   type TxFormState,
 } from "./actions";
+
+type Account = { id: string; name: string; is_liability: boolean };
 
 const currency = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -34,13 +36,13 @@ function formatSignedAmount(amount: number) {
   return amount >= 0 ? `+${formatted}` : `-${formatted}`;
 }
 
-export function ForecastClient({
-  selectedAccountId,
+export function AccountLedgerClient({
+  account,
   startingBalance,
   startingBalanceDate,
   initialTransactions,
 }: {
-  selectedAccountId: string;
+  account: Account;
   startingBalance: number;
   startingBalanceDate: string | null;
   initialTransactions: SavedTransaction[];
@@ -49,8 +51,7 @@ export function ForecastClient({
   const [editingTx, setEditingTx] = useState<SavedTransaction | "new" | null>(
     null,
   );
-  const [isPending, startTransition] = useTransition();
-  const today = todayISO();
+  const [, startTransition] = useTransition();
 
   const rows = useMemo(() => {
     const sorted = [...transactions].sort((a, b) =>
@@ -66,7 +67,8 @@ export function ForecastClient({
     );
   }, [transactions, startingBalance]);
 
-  const endingBalance = rows.length > 0 ? rows[rows.length - 1].balance : startingBalance;
+  const currentBalance =
+    rows.length > 0 ? rows[rows.length - 1].balance : startingBalance;
 
   function upsertLocal(tx: SavedTransaction) {
     setTransactions((prev) => {
@@ -79,36 +81,38 @@ export function ForecastClient({
     if (!confirm("Delete this entry? This can't be undone.")) return;
     setTransactions((prev) => prev.filter((t) => t.id !== id));
     startTransition(() => {
-      deleteTransaction(id);
-    });
-  }
-
-  function handleToggleStatus(tx: SavedTransaction) {
-    const next = tx.status === "planned" ? "actual" : "planned";
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === tx.id ? { ...t, status: next } : t)),
-    );
-    startTransition(() => {
-      setTransactionStatus(tx.id, next);
+      deleteLedgerEntry(id);
     });
   }
 
   return (
     <div className="space-y-6">
+      <div>
+        <Link
+          href="/accounts"
+          className="text-sm text-foreground/60 transition-colors hover:text-accent"
+        >
+          ← Accounts
+        </Link>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Forecast</h1>
-          <p className="text-sm text-foreground/60">
-            {startingBalanceDate
-              ? `Starting from ${currency.format(startingBalance)} on ${formatDate(startingBalanceDate)}`
-              : "No starting balance set yet — starting from €0.00"}
+          <h1 className="text-xl font-semibold tracking-tight">{account.name}</h1>
+          <p
+            className={`text-lg font-medium tabular-nums ${
+              currentBalance < 0 ? "text-red-500" : ""
+            }`}
+          >
+            {currency.format(currentBalance)}
+            {account.is_liability ? " owed" : ""}
           </p>
         </div>
         <button
           onClick={() => setEditingTx("new")}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
         >
-          Add entry
+          Log payment
         </button>
       </div>
 
@@ -120,7 +124,6 @@ export function ForecastClient({
               <th className="px-3 py-2 font-normal">Description</th>
               <th className="px-3 py-2 text-right font-normal">Amount</th>
               <th className="px-3 py-2 text-right font-normal">Balance</th>
-              <th className="px-3 py-2 font-normal">Status</th>
               <th className="px-3 py-2 font-normal"></th>
             </tr>
           </thead>
@@ -128,103 +131,63 @@ export function ForecastClient({
             <tr className="border-b border-foreground/10 text-foreground/40">
               <td className="px-3 py-2" colSpan={3}>
                 {startingBalanceDate
-                  ? `Balance as of ${formatDate(startingBalanceDate)}`
+                  ? `Starting balance as of ${formatDate(startingBalanceDate)}`
                   : "Starting balance"}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {currency.format(startingBalance)}
               </td>
-              <td colSpan={2} />
+              <td />
             </tr>
-            {rows.map((tx) => {
-              const overdue = tx.status === "planned" && tx.date < today;
-              return (
-                <tr
-                  key={tx.id}
-                  className={`border-b border-foreground/10 last:border-0 ${
-                    overdue ? "bg-amber-500/5" : ""
+            {rows.map((tx) => (
+              <tr key={tx.id} className="border-b border-foreground/10 last:border-0">
+                <td className="px-3 py-2 tabular-nums">{formatDate(tx.date)}</td>
+                <td className="px-3 py-2">{tx.merchant}</td>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums ${
+                    tx.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""
                   }`}
                 >
-                  <td className="px-3 py-2 tabular-nums">{formatDate(tx.date)}</td>
-                  <td className="px-3 py-2">{tx.merchant}</td>
-                  <td
-                    className={`px-3 py-2 text-right tabular-nums ${
-                      tx.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""
-                    }`}
+                  {formatSignedAmount(tx.amount)}
+                </td>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums font-medium ${
+                    tx.balance < 0 ? "text-red-500" : ""
+                  }`}
+                >
+                  {currency.format(tx.balance)}
+                </td>
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => setEditingTx(tx)}
+                    className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
                   >
-                    {formatSignedAmount(tx.amount)}
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right tabular-nums font-medium ${
-                      tx.balance < 0 ? "text-red-500" : ""
-                    }`}
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tx.id)}
+                    className="text-xs text-red-500 transition-colors hover:text-red-400"
                   >
-                    {currency.format(tx.balance)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => handleToggleStatus(tx)}
-                      disabled={isPending}
-                      className={`text-xs underline decoration-dotted transition-colors ${
-                        overdue
-                          ? "text-amber-600 hover:text-accent dark:text-amber-400"
-                          : tx.status === "actual"
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-foreground/60 hover:text-accent"
-                      }`}
-                    >
-                      {tx.status === "actual" ? "cleared" : "planned"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setEditingTx(tx)}
-                      className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(tx.id)}
-                      className="text-xs text-red-500 transition-colors hover:text-red-400"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-foreground/40">
-                  Nothing planned in the next 90 days.
+                <td colSpan={5} className="px-3 py-6 text-center text-foreground/40">
+                  Nothing logged yet.
                 </td>
               </tr>
             )}
           </tbody>
-          {rows.length > 0 && (
-            <tfoot>
-              <tr className="border-t border-foreground/15 font-medium">
-                <td className="px-3 py-2" colSpan={3}>
-                  Ending balance
-                </td>
-                <td
-                  className={`px-3 py-2 text-right tabular-nums ${
-                    endingBalance < 0 ? "text-red-500" : ""
-                  }`}
-                >
-                  {currency.format(endingBalance)}
-                </td>
-                <td colSpan={2} />
-              </tr>
-            </tfoot>
-          )}
         </table>
       </div>
 
       {editingTx && (
-        <TransactionFormModal
+        <EntryFormModal
           tx={editingTx === "new" ? null : editingTx}
-          accountId={selectedAccountId}
+          account={account}
           onClose={() => setEditingTx(null)}
           onSaved={(tx) => {
             upsertLocal(tx);
@@ -236,22 +199,25 @@ export function ForecastClient({
   );
 }
 
-function TransactionFormModal({
+function EntryFormModal({
   tx,
-  accountId,
+  account,
   onClose,
   onSaved,
 }: {
   tx: SavedTransaction | null;
-  accountId: string;
+  account: Account;
   onClose: () => void;
   onSaved: (tx: SavedTransaction) => void;
 }) {
   const isNew = !tx;
-  const action = isNew ? addTransaction : updateTransaction.bind(null, tx!.id);
+  const action = isNew ? addLedgerEntry : updateLedgerEntry.bind(null, tx!.id);
   const [state, formAction, pending] = useActionState<TxFormState, FormData>(
     action,
     undefined,
+  );
+  const [kind, setKind] = useState<"income" | "expense">(
+    tx && tx.amount < 0 ? "expense" : "income",
   );
 
   useEffect(() => {
@@ -262,40 +228,43 @@ function TransactionFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
-        <h2 className="mb-4 font-medium">{isNew ? "Add entry" : "Edit entry"}</h2>
+        <h2 className="mb-4 font-medium">
+          {isNew ? "Log payment" : "Edit entry"}
+        </h2>
         <form action={formAction} className="space-y-3">
-          <input type="hidden" name="account_id" value={accountId} />
+          <input type="hidden" name="account_id" value={account.id} />
           <div>
             <label className="mb-1 block text-xs text-foreground/60">Description</label>
             <input
               name="description"
               defaultValue={tx?.merchant ?? ""}
+              placeholder={account.is_liability ? "e.g. Paid to Danske Bank" : ""}
               required
               className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-foreground/60">Type</label>
-              <select
-                name="kind"
-                defaultValue={tx && tx.amount >= 0 ? "income" : "expense"}
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-foreground/60">Amount (€)</label>
-              <input
-                name="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
+            {!account.is_liability && (
+              <div>
+                <label className="mb-1 block text-xs text-foreground/60">Type</label>
+                <select
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as "income" | "expense")}
+                  className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                >
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+            )}
+            <div className={account.is_liability ? "col-span-2" : ""}>
+              <label className="mb-1 block text-xs text-foreground/60">
+                {account.is_liability ? "Amount paid (€)" : "Amount (€)"}
+              </label>
+              <AmountField
+                account={account}
+                kind={kind}
                 defaultValue={tx ? Math.abs(tx.amount) : undefined}
-                required
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
               />
             </div>
           </div>
@@ -329,5 +298,35 @@ function TransactionFormModal({
         </form>
       </div>
     </div>
+  );
+}
+
+function AmountField({
+  account,
+  kind,
+  defaultValue,
+}: {
+  account: Account;
+  kind: "income" | "expense";
+  defaultValue: number | undefined;
+}) {
+  const [magnitude, setMagnitude] = useState(defaultValue?.toString() ?? "");
+  const sign = account.is_liability ? 1 : kind === "income" ? 1 : -1;
+  const signedAmount =
+    magnitude === "" ? "" : (sign * Math.abs(Number(magnitude) || 0)).toString();
+
+  return (
+    <>
+      <input
+        type="number"
+        step="0.01"
+        min="0.01"
+        value={magnitude}
+        onChange={(e) => setMagnitude(e.target.value)}
+        required
+        className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+      />
+      <input type="hidden" name="signed_amount" value={signedAmount} />
+    </>
   );
 }

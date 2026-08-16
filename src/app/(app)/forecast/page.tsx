@@ -3,14 +3,9 @@ import { requireHouseholdId } from "@/lib/household";
 import { materializePlannedTransactions } from "./materialize";
 import { ForecastClient } from "./ForecastClient";
 
-export default async function ForecastPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ account?: string }>;
-}) {
+export default async function ForecastPage() {
   const householdId = await requireHouseholdId();
   const supabase = await createClient();
-  const { account: requestedAccountId } = await searchParams;
 
   const { data: accounts, error: accountsError } = await supabase
     .from("accounts")
@@ -29,7 +24,6 @@ export default async function ForecastPage({
   }
 
   const selectedAccount =
-    accounts.find((a) => a.id === requestedAccountId) ??
     accounts.find((a) => a.name.toLowerCase().includes("bills")) ??
     accounts[0];
 
@@ -55,7 +49,6 @@ export default async function ForecastPage({
 
   return (
     <ForecastClient
-      accounts={accounts}
       selectedAccountId={selectedAccount.id}
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}

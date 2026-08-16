@@ -7,6 +7,8 @@ const LINKS = [
   { href: "/forecast", label: "Forecast" },
   { href: "/bills", label: "Monthly Bills" },
   { href: "/balances", label: "Balances" },
+  { href: "/accounts", label: "Accounts" },
+  { href: "/debts", label: "Debts" },
   { href: "/networth", label: "Net Worth" },
 ];
 
