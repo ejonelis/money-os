@@ -47,9 +47,28 @@ export async function saveDailyBalances(
   }
 
   const supabase = await createClient();
+
+  // Liability accounts (credit cards, loans) always net worth as negative.
+  // Whatever sign the user typed, normalize it — so entering the plain
+  // amount owed just works, and an accidental minus sign is harmless.
+  const { data: liabilityAccounts } = await supabase
+    .from("accounts")
+    .select("id")
+    .in(
+      "id",
+      rows.map((r) => r.account_id),
+    )
+    .eq("is_liability", true);
+  const liabilityIds = new Set((liabilityAccounts ?? []).map((a) => a.id));
+
+  const normalizedRows = rows.map((r) => ({
+    ...r,
+    balance: liabilityIds.has(r.account_id) ? -Math.abs(r.balance) : r.balance,
+  }));
+
   const { data, error } = await supabase
     .from("balance_snapshots")
-    .upsert(rows, { onConflict: "account_id,as_of_date" })
+    .upsert(normalizedRows, { onConflict: "account_id,as_of_date" })
     .select("account_id, as_of_date, balance");
 
   if (error) {

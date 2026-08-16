@@ -273,6 +273,7 @@ function DailyEntryForm({
           <div key={a.id}>
             <label className="mb-1 block text-xs text-foreground/60">
               {a.name}
+              {a.is_liability ? " (owed)" : ""}
             </label>
             <input
               name={`balance_${a.id}`}
@@ -280,7 +281,7 @@ function DailyEntryForm({
               step="0.01"
               placeholder={
                 lastKnown.has(a.id)
-                  ? currency.format(lastKnown.get(a.id)!)
+                  ? currency.format(Math.abs(lastKnown.get(a.id)!))
                   : "€0.00"
               }
               className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
@@ -290,7 +291,8 @@ function DailyEntryForm({
       </div>
       <p className="text-xs text-foreground/40">
         Leave an account blank to keep its last known balance — only enter
-        what changed.
+        what changed. For accounts marked &ldquo;owed&rdquo;, just type the
+        amount you owe — no minus sign needed.
       </p>
       {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
       <button
