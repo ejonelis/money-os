@@ -6,6 +6,7 @@ import { useState } from "react";
 const LINKS = [
   { href: "/forecast", label: "Forecast" },
   { href: "/bills", label: "Monthly Bills" },
+  { href: "/balances", label: "Balances" },
 ];
 
 export function AppNav({
