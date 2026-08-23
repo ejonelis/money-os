@@ -84,9 +84,14 @@ export function ForecastClient({
   );
 
   const rows = useMemo(() => {
-    const sorted = [...planned].sort((a, b) =>
-      a.date === b.date ? 0 : a.date < b.date ? -1 : 1,
-    );
+    const sorted = [...planned].sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      // Same day: income lands before expenses, since it changes what the
+      // rest of that day's balance actually looks like.
+      const aIsIncome = a.amount >= 0 ? 0 : 1;
+      const bIsIncome = b.amount >= 0 ? 0 : 1;
+      return aIsIncome - bIsIncome;
+    });
     return sorted.reduce<Array<SavedTransaction & { balance: number }>>(
       (acc, tx) => {
         const prevBalance =
