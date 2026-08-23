@@ -60,9 +60,10 @@ export function NetWorthClient({
 
   const latest = useMemo(() => {
     const map = new Map<string, Snapshot>();
-    for (const s of [...snapshots].sort((a, b) =>
-      a.as_of_date < b.as_of_date ? -1 : 1,
-    )) {
+    for (const s of [...snapshots].sort((a, b) => {
+      if (a.as_of_date !== b.as_of_date) return a.as_of_date < b.as_of_date ? -1 : 1;
+      return a.created_at < b.created_at ? -1 : 1;
+    })) {
       map.set(s.account_id, s);
     }
     return map;
@@ -101,10 +102,7 @@ export function NetWorthClient({
         ? prev.map((a) => (a.id === account.id ? account : a))
         : [...prev, account];
     });
-    setSnapshots((prev) => {
-      const key = (s: Snapshot) => `${s.account_id}:${s.as_of_date}`;
-      return [...prev.filter((s) => key(s) !== key(snapshot)), snapshot];
-    });
+    setSnapshots((prev) => [...prev, snapshot]);
   }
 
   function handleArchive(account: Account) {

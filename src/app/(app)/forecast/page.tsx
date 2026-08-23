@@ -34,13 +34,17 @@ export default async function ForecastPage() {
       supabase
         .from("transactions")
         .select("id, account_id, date, amount, status, merchant, recurring_rule_id")
+        // Forecast only shows what's still upcoming — cleared/actual
+        // entries move to the account's own ledger (see /accounts).
         .eq("account_id", selectedAccount.id)
+        .in("status", ["planned", "on_hold"])
         .order("date", { ascending: true }),
       supabase
         .from("balance_snapshots")
         .select("balance, as_of_date")
         .eq("account_id", selectedAccount.id)
         .order("as_of_date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);

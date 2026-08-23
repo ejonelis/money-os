@@ -20,9 +20,10 @@ export default async function NetWorthPage() {
     accountIds.length > 0
       ? await supabase
           .from("balance_snapshots")
-          .select("account_id, as_of_date, balance")
+          .select("account_id, as_of_date, balance, created_at")
           .in("account_id", accountIds)
           .order("as_of_date", { ascending: true })
+          .order("created_at", { ascending: true })
       : { data: [], error: null };
 
   if (snapshotsError) throw new Error(snapshotsError.message);

@@ -55,18 +55,18 @@ export function BalancesClient({
   const [date, setDate] = useState(todayISO());
 
   function mergeSaved(saved: Snapshot[]) {
-    setSnapshots((prev) => {
-      const key = (s: Snapshot) => `${s.account_id}:${s.as_of_date}`;
-      const savedKeys = new Set(saved.map(key));
-      return [...prev.filter((s) => !savedKeys.has(key(s))), ...saved];
-    });
+    // Snapshots are append-only now — several can share a day (e.g. a 6am
+    // check-in and a 7pm Forecast update), so newly saved ones are just
+    // added on, never replacing same-day entries.
+    setSnapshots((prev) => [...prev, ...saved]);
   }
 
   const lastKnown = useMemo(() => {
     const map = new Map<string, number>();
-    for (const s of [...snapshots].sort((a, b) =>
-      a.as_of_date < b.as_of_date ? -1 : 1,
-    )) {
+    for (const s of [...snapshots].sort((a, b) => {
+      if (a.as_of_date !== b.as_of_date) return a.as_of_date < b.as_of_date ? -1 : 1;
+      return a.created_at < b.created_at ? -1 : 1;
+    })) {
       map.set(s.account_id, s.balance);
     }
     return map;

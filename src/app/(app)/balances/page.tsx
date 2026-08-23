@@ -26,9 +26,10 @@ export default async function BalancesPage() {
   const accountIds = accounts.map((a) => a.id);
   const { data: snapshots, error: snapshotsError } = await supabase
     .from("balance_snapshots")
-    .select("account_id, as_of_date, balance")
+    .select("account_id, as_of_date, balance, created_at")
     .in("account_id", accountIds)
-    .order("as_of_date", { ascending: true });
+    .order("as_of_date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (snapshotsError) throw new Error(snapshotsError.message);
 

@@ -4,6 +4,7 @@ export const FREQUENCIES = [
   "bimonthly",
   "quarterly",
   "yearly",
+  "monthly_weekday",
 ] as const;
 
 export type Frequency = (typeof FREQUENCIES)[number];
@@ -14,11 +15,16 @@ export const FREQUENCY_LABELS: Record<Frequency, string> = {
   bimonthly: "Every 2 months",
   quarterly: "Quarterly",
   yearly: "Yearly",
+  monthly_weekday: "Same weekday each month (e.g. 2nd Tue)",
 };
 
-// Every non-weekly frequency is "every N months" — monthly is just N=1 and
-// yearly is N=12, so they all share one code path below.
-const MONTH_STEP: Record<Exclude<Frequency, "weekly">, number> = {
+// Every day-number-based frequency is "every N months" — monthly is just
+// N=1 and yearly is N=12, so they all share one code path below. Weekly and
+// monthly_weekday are handled separately (weekday-based, not day-number).
+const MONTH_STEP: Record<
+  Exclude<Frequency, "weekly" | "monthly_weekday">,
+  number
+> = {
   monthly: 1,
   bimonthly: 2,
   quarterly: 3,
@@ -72,6 +78,20 @@ export function occurrencesInMonth(
 
   if (compareYMD(monthStart, { y: anchor.y, m: anchor.m, d: 1 }) < 0) {
     return [];
+  }
+
+  if (rule.frequency === "monthly_weekday") {
+    const targetWeekday = weekdayOf(anchor.y, anchor.m, anchor.d);
+    const nth = Math.ceil(anchor.d / 7); // which occurrence of that weekday the anchor is (1st..5th)
+    const matches: number[] = [];
+    const total = daysInMonth(year, month);
+    for (let d = 1; d <= total; d++) {
+      if (weekdayOf(year, month, d) === targetWeekday) matches.push(d);
+    }
+    // Clamp to the last occurrence if the month doesn't have an nth one
+    // (e.g. a rare 5th Tuesday) — same spirit as day-of-month clamping.
+    const d = matches[Math.min(nth, matches.length) - 1];
+    return [toISO(year, month, d)];
   }
 
   if (rule.frequency !== "weekly") {

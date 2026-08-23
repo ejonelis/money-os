@@ -12,6 +12,7 @@ export type SavedSnapshot = {
   account_id: string;
   as_of_date: string;
   balance: number;
+  created_at: string;
 };
 
 export type SaveBalancesState =
@@ -68,8 +69,8 @@ export async function saveDailyBalances(
 
   const { data, error } = await supabase
     .from("balance_snapshots")
-    .upsert(normalizedRows, { onConflict: "account_id,as_of_date" })
-    .select("account_id, as_of_date, balance");
+    .insert(normalizedRows)
+    .select("account_id, as_of_date, balance, created_at");
 
   if (error) {
     return { error: error.message };

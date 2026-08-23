@@ -27,13 +27,17 @@ export default async function AccountLedgerPage({
       supabase
         .from("transactions")
         .select("id, account_id, date, amount, merchant")
+        // Only cleared/actual entries belong in the ledger — planned and
+        // on-hold forecast entries stay on the Forecast page until cleared.
         .eq("account_id", account.id)
+        .eq("status", "actual")
         .order("date", { ascending: true }),
       supabase
         .from("balance_snapshots")
         .select("balance, as_of_date")
         .eq("account_id", account.id)
         .order("as_of_date", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);

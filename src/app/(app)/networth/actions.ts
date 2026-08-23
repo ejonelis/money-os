@@ -25,6 +25,7 @@ export type SavedValue = {
   account_id: string;
   as_of_date: string;
   balance: number;
+  created_at: string;
 };
 
 export type AccountFormState =
@@ -75,15 +76,12 @@ export async function createAccount(
 
   const { data: snapshot, error: snapshotError } = await supabase
     .from("balance_snapshots")
-    .upsert(
-      {
-        account_id: account.id,
-        as_of_date: parsed.data.as_of_date,
-        balance,
-      },
-      { onConflict: "account_id,as_of_date" },
-    )
-    .select("account_id, as_of_date, balance")
+    .insert({
+      account_id: account.id,
+      as_of_date: parsed.data.as_of_date,
+      balance,
+    })
+    .select("account_id, as_of_date, balance, created_at")
     .single();
 
   if (snapshotError || !snapshot) {
@@ -127,15 +125,12 @@ export async function updateAccount(
 
   const { data: snapshot, error: snapshotError } = await supabase
     .from("balance_snapshots")
-    .upsert(
-      {
-        account_id: id,
-        as_of_date: parsed.data.as_of_date,
-        balance,
-      },
-      { onConflict: "account_id,as_of_date" },
-    )
-    .select("account_id, as_of_date, balance")
+    .insert({
+      account_id: id,
+      as_of_date: parsed.data.as_of_date,
+      balance,
+    })
+    .select("account_id, as_of_date, balance, created_at")
     .single();
 
   if (snapshotError || !snapshot) {

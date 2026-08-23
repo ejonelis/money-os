@@ -53,19 +53,28 @@ export function AccountLedgerClient({
   );
   const [, startTransition] = useTransition();
 
-  const rows = useMemo(() => {
+  // Entries older than the starting balance are already baked into it —
+  // summing them again would double-count, so they're shown as plain
+  // history above the starting-balance line, with no running balance.
+  const { priorHistory, rows } = useMemo(() => {
     const sorted = [...transactions].sort((a, b) =>
       a.date === b.date ? 0 : a.date < b.date ? -1 : 1,
     );
-    return sorted.reduce<Array<SavedTransaction & { balance: number }>>(
-      (acc, tx) => {
-        const prevBalance =
-          acc.length > 0 ? acc[acc.length - 1].balance : startingBalance;
-        return [...acc, { ...tx, balance: prevBalance + tx.amount }];
-      },
-      [],
-    );
-  }, [transactions, startingBalance]);
+    const prior = startingBalanceDate
+      ? sorted.filter((tx) => tx.date < startingBalanceDate)
+      : [];
+    const counted = startingBalanceDate
+      ? sorted.filter((tx) => tx.date >= startingBalanceDate)
+      : sorted;
+    const withBalance = counted.reduce<
+      Array<SavedTransaction & { balance: number }>
+    >((acc, tx) => {
+      const prevBalance =
+        acc.length > 0 ? acc[acc.length - 1].balance : startingBalance;
+      return [...acc, { ...tx, balance: prevBalance + tx.amount }];
+    }, []);
+    return { priorHistory: prior, rows: withBalance };
+  }, [transactions, startingBalance, startingBalanceDate]);
 
   const currentBalance =
     rows.length > 0 ? rows[rows.length - 1].balance : startingBalance;
@@ -128,6 +137,30 @@ export function AccountLedgerClient({
             </tr>
           </thead>
           <tbody>
+            {priorHistory.map((tx) => (
+              <tr key={tx.id} className="border-b border-foreground/10 text-foreground/40">
+                <td className="px-3 py-2 tabular-nums">{formatDate(tx.date)}</td>
+                <td className="px-3 py-2">{tx.merchant}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatSignedAmount(tx.amount)}
+                </td>
+                <td />
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => setEditingTx(tx)}
+                    className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tx.id)}
+                    className="text-xs text-red-500 transition-colors hover:text-red-400"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
             <tr className="border-b border-foreground/10 text-foreground/40">
               <td className="px-3 py-2" colSpan={3}>
                 {startingBalanceDate
