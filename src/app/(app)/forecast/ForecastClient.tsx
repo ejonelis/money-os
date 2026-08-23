@@ -55,6 +55,18 @@ function formatSignedAmount(amount: number) {
   return amount >= 0 ? `+${formatted}` : `-${formatted}`;
 }
 
+// Compact date for mobile section headers — the year rarely matters for a
+// 90-day-out forecast, and the weekday helps at a glance.
+function formatDateShort(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function ForecastClient({
   selectedAccountId,
   startingBalance,
@@ -116,6 +128,18 @@ export function ForecastClient({
 
   const endingBalance = rows.length > 0 ? rows[rows.length - 1].balance : currentBalance;
   const firstNegative = rows.find((r) => r.balance < 0);
+
+  // Mobile card view: same rows, grouped into consecutive same-day runs so
+  // the date only needs to appear once per day instead of on every row.
+  const dateGroups = useMemo(() => {
+    return rows.reduce<Array<{ date: string; entries: typeof rows }>>((groups, tx) => {
+      const last = groups[groups.length - 1];
+      if (last && last.date === tx.date) {
+        return [...groups.slice(0, -1), { date: last.date, entries: [...last.entries, tx] }];
+      }
+      return [...groups, { date: tx.date, entries: [tx] }];
+    }, []);
+  }, [rows]);
 
   const monthEntries = useMemo(() => {
     const map = new Map<string, CalendarEntry[]>();
@@ -274,7 +298,75 @@ export function ForecastClient({
       </div>
 
       {view === "list" ? (
-      <div className="overflow-x-auto rounded-md border border-foreground/15">
+      <>
+      <div className="space-y-4 sm:hidden">
+        <div className="rounded-md border border-foreground/15 px-3 py-2 text-sm text-foreground/60">
+          {currentBalanceDate
+            ? `Balance as of ${formatDateShort(currentBalanceDate)}`
+            : "Starting balance"}
+          :{" "}
+          <span className="font-medium text-foreground">
+            {currency.format(currentBalance)}
+          </span>
+        </div>
+
+        {dateGroups.map((group) => (
+          <div key={group.date}>
+            <div className="mb-1 px-1 text-xs font-medium text-foreground/50">
+              {formatDateShort(group.date)}
+            </div>
+            <div className="divide-y divide-foreground/10 overflow-hidden rounded-md border border-foreground/15">
+              {group.entries.map((tx) => {
+                const overdue = tx.date < today;
+                return (
+                  <button
+                    key={tx.id}
+                    onClick={() => setRowActionTx(tx)}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-foreground/5 ${
+                      overdue ? "bg-amber-500/5" : ""
+                    }`}
+                  >
+                    <span className="truncate text-sm">{tx.merchant}</span>
+                    <span className="flex shrink-0 flex-col items-end">
+                      <span
+                        className={`text-sm tabular-nums ${
+                          tx.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""
+                        }`}
+                      >
+                        {formatSignedAmount(tx.amount)}
+                      </span>
+                      <span
+                        className={`text-xs tabular-nums font-medium ${
+                          tx.balance < 0 ? "text-red-500" : "text-foreground/50"
+                        }`}
+                      >
+                        {currency.format(tx.balance)}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {rows.length === 0 && (
+          <p className="px-3 py-6 text-center text-sm text-foreground/40">
+            Nothing planned in the next 90 days.
+          </p>
+        )}
+
+        {rows.length > 0 && (
+          <div className="flex items-center justify-between rounded-md border border-foreground/15 px-3 py-2 text-sm font-medium">
+            <span>Ending balance</span>
+            <span className={endingBalance < 0 ? "text-red-500" : ""}>
+              {currency.format(endingBalance)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-md border border-foreground/15 sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-foreground/15 text-left text-foreground/60">
@@ -282,7 +374,7 @@ export function ForecastClient({
               <th className="px-3 py-2 font-normal">Description</th>
               <th className="px-3 py-2 text-right font-normal">Amount</th>
               <th className="px-3 py-2 text-right font-normal">Balance</th>
-              <th className="hidden px-3 py-2 font-normal sm:table-cell"></th>
+              <th className="px-3 py-2 font-normal"></th>
             </tr>
           </thead>
           <tbody>
@@ -295,18 +387,14 @@ export function ForecastClient({
               <td className="px-3 py-2 text-right tabular-nums">
                 {currency.format(currentBalance)}
               </td>
-              <td className="hidden sm:table-cell" />
+              <td />
             </tr>
             {rows.map((tx) => {
               const overdue = tx.date < today;
               return (
                 <tr
                   key={tx.id}
-                  onClick={() => {
-                    if (window.innerWidth >= 640) return;
-                    setRowActionTx(tx);
-                  }}
-                  className={`cursor-pointer border-b border-foreground/10 last:border-0 sm:cursor-default ${
+                  className={`border-b border-foreground/10 last:border-0 ${
                     overdue ? "bg-amber-500/5" : ""
                   }`}
                 >
@@ -326,7 +414,7 @@ export function ForecastClient({
                   >
                     {currency.format(tx.balance)}
                   </td>
-                  <td className="hidden px-3 py-2 text-right whitespace-nowrap sm:table-cell">
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleClear(tx)}
                       disabled={isPending}
@@ -377,6 +465,7 @@ export function ForecastClient({
           )}
         </table>
       </div>
+      </>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
