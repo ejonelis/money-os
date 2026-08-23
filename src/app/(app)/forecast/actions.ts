@@ -207,6 +207,29 @@ export async function setTransactionStatus(id: string, status: TxStatus) {
   revalidatePath("/forecast");
 }
 
+// Marking something cleared means it's really happened — the displayed
+// balance should reflect that immediately, not wait for the next manual
+// check-in. Records the adjusted figure as today's balance alongside the
+// status flip.
+export async function clearTransaction(
+  id: string,
+  accountId: string,
+  newBalance: number,
+) {
+  const supabase = await createClient();
+  const asOfDate = new Date().toISOString().slice(0, 10);
+  await Promise.all([
+    supabase.from("transactions").update({ status: "actual" }).eq("id", id),
+    supabase.from("balance_snapshots").insert({
+      account_id: accountId,
+      as_of_date: asOfDate,
+      balance: newBalance,
+    }),
+  ]);
+  revalidatePath("/forecast");
+  revalidatePath("/balances");
+}
+
 const balanceSchema = z.object({
   account_id: z.string().uuid(),
   balance: z.coerce.number(),

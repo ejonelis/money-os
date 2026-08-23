@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   addTransaction,
+  clearTransaction,
   deleteAllFutureOccurrences,
   deleteOccurrenceOnly,
   deleteTransaction,
@@ -199,10 +200,13 @@ export function ForecastClient({
     });
   }
 
-  function handleClear(id: string) {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  function handleClear(tx: SavedTransaction) {
+    const newBalance = currentBalance + tx.amount;
+    setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+    setCurrentBalance(newBalance);
+    setCurrentBalanceDate(today);
     startTransition(() => {
-      setTransactionStatus(id, "actual");
+      clearTransaction(tx.id, selectedAccountId, newBalance);
     });
   }
 
@@ -319,7 +323,7 @@ export function ForecastClient({
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
-                      onClick={() => handleClear(tx.id)}
+                      onClick={() => handleClear(tx)}
                       disabled={isPending}
                       className="mr-3 text-xs text-emerald-600 transition-colors hover:text-accent dark:text-emerald-400"
                     >
