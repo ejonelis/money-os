@@ -29,16 +29,29 @@ export async function materializePlannedTransactions(
 
   if (!rules || rules.length === 0) return;
 
-  const { data: existing } = await supabase
-    .from("transactions")
-    .select("recurring_rule_id, date")
-    .eq("account_id", accountId)
-    .not("recurring_rule_id", "is", null)
-    .gte("date", fromISO)
-    .lte("date", throughISO);
+  const ruleIds = rules.map((r) => r.id);
+
+  const [{ data: existing }, { data: skips }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("recurring_rule_id, date")
+      .eq("account_id", accountId)
+      .not("recurring_rule_id", "is", null)
+      .gte("date", fromISO)
+      .lte("date", throughISO),
+    supabase
+      .from("recurring_rule_skips")
+      .select("recurring_rule_id, date")
+      .in("recurring_rule_id", ruleIds),
+  ]);
 
   const existingKeys = new Set(
     (existing ?? []).map((t) => `${t.recurring_rule_id}:${t.date}`),
+  );
+  // Occurrences someone explicitly deleted "just this one" — don't
+  // regenerate them.
+  const skippedKeys = new Set(
+    (skips ?? []).map((s) => `${s.recurring_rule_id}:${s.date}`),
   );
 
   const toInsert: {
@@ -55,6 +68,7 @@ export async function materializePlannedTransactions(
     for (const date of dates) {
       const key = `${rule.id}:${date}`;
       if (existingKeys.has(key)) continue;
+      if (skippedKeys.has(key)) continue;
       toInsert.push({
         account_id: accountId,
         date,

@@ -93,6 +93,15 @@ export async function updateBill(
     return { error: error?.message ?? "Could not update bill." };
   }
 
+  // Still-planned occurrences were materialized under the old amount/date/
+  // frequency — clear them out so Forecast regenerates fresh ones from the
+  // updated rule on its next load. Cleared/actual history is untouched.
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("recurring_rule_id", id)
+    .eq("status", "planned");
+
   revalidatePath("/bills");
   revalidatePath("/forecast");
   return { bill: data as SavedBill };
@@ -107,6 +116,13 @@ export async function setBillActive(id: string, active: boolean) {
 
 export async function deleteBill(id: string) {
   const supabase = await createClient();
+  // Planned occurrences shouldn't linger in Forecast once the bill itself
+  // is gone; cleared/actual history stays (the FK just detaches it).
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("recurring_rule_id", id)
+    .eq("status", "planned");
   await supabase.from("recurring_rules").delete().eq("id", id);
   revalidatePath("/bills");
   revalidatePath("/forecast");

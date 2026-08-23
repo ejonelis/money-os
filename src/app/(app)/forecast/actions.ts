@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { deleteBill, setBillActive } from "../bills/actions";
 
 const txSchema = z.object({
   account_id: z.string().uuid(),
@@ -26,7 +27,7 @@ export type SavedTransaction = {
 };
 
 export type TxFormState =
-  | { error?: string; transaction?: SavedTransaction }
+  | { error?: string; transaction?: SavedTransaction; ruleUpdated?: string }
   | undefined;
 
 const TX_COLUMNS =
@@ -86,10 +87,43 @@ export async function updateTransaction(
     return { error: parsed.error.issues[0].message };
   }
 
+  const scope = formData.get("scope"); // "occurrence" (default) | "rule"
+  const recurringRuleId = formData.get("recurring_rule_id");
+  const originalDate = formData.get("original_date");
+  const hasRule = typeof recurringRuleId === "string" && recurringRuleId.length > 0;
+
   const supabase = await createClient();
   const signedAmount =
     parsed.data.kind === "income" ? parsed.data.amount : -parsed.data.amount;
 
+  // "This bill going forward" — edits the recurring rule itself (so
+  // Monthly Bills reflects it too) and clears still-planned occurrences so
+  // Forecast regenerates them fresh under the new amount/date next load.
+  if (scope === "rule" && hasRule) {
+    await supabase
+      .from("recurring_rules")
+      .update({
+        description: parsed.data.description,
+        kind: parsed.data.kind,
+        amount: parsed.data.amount,
+        next_due_date: parsed.data.date,
+      })
+      .eq("id", recurringRuleId as string);
+
+    await supabase
+      .from("transactions")
+      .delete()
+      .eq("recurring_rule_id", recurringRuleId as string)
+      .eq("status", "planned");
+
+    revalidatePath("/bills");
+    revalidatePath("/forecast");
+    return { ruleUpdated: recurringRuleId as string };
+  }
+
+  // "Just this occurrence" — detach it from the rule so a later rule-wide
+  // edit won't sweep up this one-off correction, and mark the original
+  // date as skipped so materialize.ts doesn't regenerate a duplicate there.
   const { data, error } = await supabase
     .from("transactions")
     .update({
@@ -97,6 +131,7 @@ export async function updateTransaction(
       amount: signedAmount,
       merchant: parsed.data.description,
       status: parsed.data.on_hold ? "on_hold" : "planned",
+      ...(hasRule ? { recurring_rule_id: null } : {}),
     })
     .eq("id", id)
     .select(TX_COLUMNS)
@@ -106,6 +141,13 @@ export async function updateTransaction(
     return { error: error?.message ?? "Could not update entry." };
   }
 
+  if (hasRule && typeof originalDate === "string" && originalDate) {
+    await supabase.from("recurring_rule_skips").upsert(
+      { recurring_rule_id: recurringRuleId as string, date: originalDate },
+      { onConflict: "recurring_rule_id,date" },
+    );
+  }
+
   revalidatePath("/forecast");
   return { transaction: data as SavedTransaction };
 }
@@ -113,6 +155,49 @@ export async function updateTransaction(
 export async function deleteTransaction(id: string) {
   const supabase = await createClient();
   await supabase.from("transactions").delete().eq("id", id);
+  revalidatePath("/forecast");
+}
+
+// "Delete just this one" — removes the occurrence and remembers not to
+// regenerate it.
+export async function deleteOccurrenceOnly(
+  id: string,
+  recurringRuleId: string | null,
+  date: string,
+) {
+  const supabase = await createClient();
+  if (recurringRuleId) {
+    await supabase.from("recurring_rule_skips").upsert(
+      { recurring_rule_id: recurringRuleId, date },
+      { onConflict: "recurring_rule_id,date" },
+    );
+  }
+  await supabase.from("transactions").delete().eq("id", id);
+  revalidatePath("/forecast");
+}
+
+// "Delete all" — clears every still-planned occurrence of this bill from
+// Forecast. Whether the bill itself also goes is a separate follow-up
+// choice (removeBillEntirely / pauseBillFromForecast).
+export async function deleteAllFutureOccurrences(recurringRuleId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("recurring_rule_id", recurringRuleId)
+    .eq("status", "planned");
+  revalidatePath("/forecast");
+}
+
+export async function removeBillEntirely(recurringRuleId: string) {
+  await deleteBill(recurringRuleId);
+  revalidatePath("/forecast");
+}
+
+// Keeps the bill in Monthly Bills but stops it from generating new
+// occurrences — the "just remove it from Forecast" half of the choice.
+export async function pauseBillFromForecast(recurringRuleId: string) {
+  await setBillActive(recurringRuleId, false);
   revalidatePath("/forecast");
 }
 

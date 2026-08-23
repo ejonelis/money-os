@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   startTransition,
   useActionState,
@@ -10,7 +11,11 @@ import {
 } from "react";
 import {
   addTransaction,
+  deleteAllFutureOccurrences,
+  deleteOccurrenceOnly,
   deleteTransaction,
+  pauseBillFromForecast,
+  removeBillEntirely,
   setTransactionStatus,
   updateCurrentBalance,
   updateTransaction,
@@ -54,12 +59,18 @@ export function ForecastClient({
   startingBalanceDate: string | null;
   initialTransactions: SavedTransaction[];
 }) {
+  const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
   const [currentBalance, setCurrentBalance] = useState(startingBalance);
   const [currentBalanceDate, setCurrentBalanceDate] = useState(startingBalanceDate);
   const [editingTx, setEditingTx] = useState<SavedTransaction | "new" | null>(
     null,
   );
+  const [deleteFlow, setDeleteFlow] = useState<
+    | { step: "choose"; tx: SavedTransaction }
+    | { step: "confirmBill"; recurringRuleId: string }
+    | null
+  >(null);
   const [isPending, startTransition] = useTransition();
   const today = todayISO();
 
@@ -96,11 +107,46 @@ export function ForecastClient({
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm("Delete this entry? This can't be undone.")) return;
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  function handleDelete(tx: SavedTransaction) {
+    if (!tx.recurring_rule_id) {
+      if (!confirm("Delete this entry? This can't be undone.")) return;
+      setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+      startTransition(() => {
+        deleteTransaction(tx.id);
+      });
+      return;
+    }
+    // Recurring-linked entries need to know whether this is a one-off
+    // removal or the whole bill's future occurrences.
+    setDeleteFlow({ step: "choose", tx });
+  }
+
+  function handleDeleteJustThisOne(tx: SavedTransaction) {
+    setTransactions((prev) => prev.filter((t) => t.id !== tx.id));
+    setDeleteFlow(null);
     startTransition(() => {
-      deleteTransaction(id);
+      deleteOccurrenceOnly(tx.id, tx.recurring_rule_id, tx.date);
+    });
+  }
+
+  function handleDeleteAllOccurrences(tx: SavedTransaction) {
+    const ruleId = tx.recurring_rule_id!;
+    setTransactions((prev) => prev.filter((t) => t.recurring_rule_id !== ruleId));
+    startTransition(() => {
+      deleteAllFutureOccurrences(ruleId);
+    });
+    setDeleteFlow({ step: "confirmBill", recurringRuleId: ruleId });
+  }
+
+  function handleResolveBillRemoval(recurringRuleId: string, alsoDeleteBill: boolean) {
+    setDeleteFlow(null);
+    startTransition(async () => {
+      if (alsoDeleteBill) {
+        await removeBillEntirely(recurringRuleId);
+      } else {
+        await pauseBillFromForecast(recurringRuleId);
+      }
+      router.refresh();
     });
   }
 
@@ -221,7 +267,7 @@ export function ForecastClient({
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(tx.id)}
+                      onClick={() => handleDelete(tx)}
                       className="text-xs text-red-500 transition-colors hover:text-red-400"
                     >
                       Delete
@@ -289,7 +335,7 @@ export function ForecastClient({
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(tx.id)}
+                        onClick={() => handleDelete(tx)}
                         className="text-xs text-red-500 transition-colors hover:text-red-400"
                       >
                         Delete
@@ -312,8 +358,93 @@ export function ForecastClient({
             upsertLocal(tx);
             setEditingTx(null);
           }}
+          onRuleUpdated={(ruleId) => {
+            setTransactions((prev) => prev.filter((t) => t.recurring_rule_id !== ruleId));
+            setEditingTx(null);
+            router.refresh();
+          }}
         />
       )}
+
+      {deleteFlow?.step === "choose" && (
+        <ChoiceModal
+          title="Delete this bill"
+          message={`"${deleteFlow.tx.merchant}" repeats. Delete just this one, or every upcoming occurrence?`}
+          options={[
+            {
+              label: "Just this occurrence",
+              onClick: () => handleDeleteJustThisOne(deleteFlow.tx),
+            },
+            {
+              label: "All occurrences",
+              danger: true,
+              onClick: () => handleDeleteAllOccurrences(deleteFlow.tx),
+            },
+          ]}
+          onCancel={() => setDeleteFlow(null)}
+        />
+      )}
+
+      {deleteFlow?.step === "confirmBill" && (
+        <ChoiceModal
+          title="Remove from Monthly Bills too?"
+          message="It's cleared out of the forecast. Do you also want to delete the bill itself, or just pause it so it stops generating new occurrences but stays in Monthly Bills?"
+          options={[
+            {
+              label: "Just pause it",
+              onClick: () => handleResolveBillRemoval(deleteFlow.recurringRuleId, false),
+            },
+            {
+              label: "Delete the bill too",
+              danger: true,
+              onClick: () => handleResolveBillRemoval(deleteFlow.recurringRuleId, true),
+            },
+          ]}
+          onCancel={() => setDeleteFlow(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChoiceModal({
+  title,
+  message,
+  options,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  options: Array<{ label: string; onClick: () => void; danger?: boolean }>;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+        <h2 className="mb-2 font-medium">{title}</h2>
+        <p className="mb-4 text-sm text-foreground/60">{message}</p>
+        <div className="flex flex-col gap-2">
+          {options.map((opt) => (
+            <button
+              key={opt.label}
+              onClick={opt.onClick}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                opt.danger
+                  ? "border border-red-500/30 text-red-500 hover:bg-red-500/10"
+                  : "bg-accent text-white hover:bg-accent/90"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <button
+            onClick={onCancel}
+            className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -398,13 +529,17 @@ function TransactionFormModal({
   accountId,
   onClose,
   onSaved,
+  onRuleUpdated,
 }: {
   tx: SavedTransaction | null;
   accountId: string;
   onClose: () => void;
   onSaved: (tx: SavedTransaction) => void;
+  onRuleUpdated: (recurringRuleId: string) => void;
 }) {
   const isNew = !tx;
+  const isRecurring = !!tx?.recurring_rule_id;
+  const [scope, setScope] = useState<"occurrence" | "rule">("occurrence");
   const action = isNew ? addTransaction : updateTransaction.bind(null, tx!.id);
   const [state, formAction, pending] = useActionState<TxFormState, FormData>(
     action,
@@ -413,6 +548,7 @@ function TransactionFormModal({
 
   useEffect(() => {
     if (state?.transaction) onSaved(state.transaction);
+    if (state?.ruleUpdated) onRuleUpdated(state.ruleUpdated);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -422,6 +558,36 @@ function TransactionFormModal({
         <h2 className="mb-4 font-medium">{isNew ? "Add entry" : "Edit entry"}</h2>
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="account_id" value={accountId} />
+          {isRecurring && (
+            <>
+              <input type="hidden" name="recurring_rule_id" value={tx!.recurring_rule_id!} />
+              <input type="hidden" name="original_date" value={tx!.date} />
+              <input type="hidden" name="scope" value={scope} />
+              <div className="rounded-md border border-foreground/15 p-3">
+                <p className="mb-2 text-xs text-foreground/60">
+                  This is a repeating bill. Apply this change to:
+                </p>
+                <label className="mb-1 flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    checked={scope === "occurrence"}
+                    onChange={() => setScope("occurrence")}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  Just this occurrence
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    checked={scope === "rule"}
+                    onChange={() => setScope("rule")}
+                    className="h-4 w-4 accent-accent"
+                  />
+                  This bill going forward (updates Monthly Bills too)
+                </label>
+              </div>
+            </>
+          )}
           <div>
             <label className="mb-1 block text-xs text-foreground/60">Description</label>
             <input
