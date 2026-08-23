@@ -23,6 +23,7 @@ import {
   occurrencesInMonth,
 } from "@/lib/recurrence";
 import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
+import { ChoiceModal } from "@/components/ChoiceModal";
 
 type Bill = SavedBill;
 type ClearedOccurrence = { recurring_rule_id: string | null; date: string };
@@ -54,6 +55,16 @@ function formatDate(iso: string) {
   });
 }
 
+function formatDateShort(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IE", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -76,6 +87,7 @@ export function BillsClient({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [editingBill, setEditingBill] = useState<Bill | "new" | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [actionBill, setActionBill] = useState<Bill | null>(null);
   const today = new Date();
   const todayISO = today.toISOString().slice(0, 10);
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
@@ -119,6 +131,24 @@ export function BillsClient({
     });
     return copy;
   }, [bills, sortKey, sortDir, nextOccurrence]);
+
+  // Mobile card view: bills grouped by their real next occurrence, so the
+  // date only needs to appear once per day instead of on every card.
+  const billDateGroups = useMemo(() => {
+    const withDate = [...bills]
+      .filter((b) => nextOccurrence.get(b.id))
+      .sort((a, b) =>
+        nextOccurrence.get(a.id)!.localeCompare(nextOccurrence.get(b.id)!),
+      );
+    return withDate.reduce<Array<{ date: string; bills: Bill[] }>>((groups, bill) => {
+      const date = nextOccurrence.get(bill.id)!;
+      const last = groups[groups.length - 1];
+      if (last && last.date === date) {
+        return [...groups.slice(0, -1), { date, bills: [...last.bills, bill] }];
+      }
+      return [...groups, { date, bills: [bill] }];
+    }, []);
+  }, [bills, nextOccurrence]);
 
   function handleDelete(id: string) {
     if (!confirm("Delete this bill? This can't be undone.")) return;
@@ -238,7 +268,46 @@ export function BillsClient({
       </div>
 
       {view === "list" ? (
-        <div className="overflow-x-auto rounded-md border border-foreground/15">
+        <>
+        <div className="space-y-4 sm:hidden">
+          {billDateGroups.map((group) => (
+            <div key={group.date}>
+              <div className="mb-1 px-1 text-xs font-medium text-foreground/50">
+                {formatDateShort(group.date)}
+              </div>
+              <div className="divide-y divide-foreground/10 overflow-hidden rounded-md border border-foreground/15">
+                {group.bills.map((bill) => (
+                  <button
+                    key={bill.id}
+                    onClick={() => setActionBill(bill)}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-foreground/5 ${
+                      !bill.active ? "opacity-40" : ""
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm">{bill.description}</span>
+                      <span className="block truncate text-xs text-foreground/50">
+                        {accountName(bill.account_id)} · {FREQUENCY_LABELS[bill.frequency]}
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 text-sm tabular-nums ${
+                        bill.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""
+                      }`}
+                    >
+                      {formatSigned(bill)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {bills.length === 0 && (
+            <p className="px-3 py-6 text-center text-sm text-foreground/40">No bills yet.</p>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-md border border-foreground/15 sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-foreground/15 text-left text-foreground/60">
@@ -324,6 +393,7 @@ export function BillsClient({
             </tbody>
           </table>
         </div>
+        </>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -372,6 +442,38 @@ export function BillsClient({
             upsertLocal(bill);
             setEditingBill(null);
           }}
+        />
+      )}
+
+      {actionBill && (
+        <ChoiceModal
+          title={actionBill.description}
+          message={`${accountName(actionBill.account_id)} · ${FREQUENCY_LABELS[actionBill.frequency]} · ${formatSigned(actionBill)}`}
+          options={[
+            {
+              label: actionBill.active ? "Pause" : "Resume",
+              onClick: () => {
+                handleToggleActive(actionBill);
+                setActionBill(null);
+              },
+            },
+            {
+              label: "Edit",
+              onClick: () => {
+                setEditingBill(actionBill);
+                setActionBill(null);
+              },
+            },
+            {
+              label: "Delete",
+              danger: true,
+              onClick: () => {
+                handleDelete(actionBill.id);
+                setActionBill(null);
+              },
+            },
+          ]}
+          onCancel={() => setActionBill(null)}
         />
       )}
     </div>
