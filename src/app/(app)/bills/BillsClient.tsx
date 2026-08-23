@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   createBill,
   deleteBill,
@@ -9,7 +16,12 @@ import {
   type BillFormState,
   type SavedBill,
 } from "./actions";
-import { FREQUENCIES, FREQUENCY_LABELS, occurrencesInMonth } from "@/lib/recurrence";
+import {
+  FREQUENCIES,
+  FREQUENCY_LABELS,
+  nextOccurrenceOnOrAfter,
+  occurrencesInMonth,
+} from "@/lib/recurrence";
 
 type Bill = SavedBill;
 
@@ -60,13 +72,26 @@ export function BillsClient({
   const [sortKey, setSortKey] = useState<SortKey>("next_due_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [editingBill, setEditingBill] = useState<Bill | "new" | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const today = new Date();
+  const todayISO = today.toISOString().slice(0, 10);
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth() + 1);
   const [isPending, startTransition] = useTransition();
 
   const accountName = (id: string) =>
     accounts.find((a) => a.id === id)?.name ?? "—";
+
+  // The rule's next_due_date is a fixed anchor from whenever it was set —
+  // it drifts into the past as months go by. This is the real upcoming
+  // occurrence relative to today, recomputed on every render.
+  const nextOccurrence = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const bill of bills) {
+      map.set(bill.id, nextOccurrenceOnOrAfter(bill, todayISO));
+    }
+    return map;
+  }, [bills, todayISO]);
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -82,11 +107,15 @@ export function BillsClient({
     copy.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "amount") cmp = a.amount - b.amount;
-      else cmp = String(a[sortKey]).localeCompare(String(b[sortKey]));
+      else if (sortKey === "next_due_date") {
+        cmp = (nextOccurrence.get(a.id) ?? "").localeCompare(
+          nextOccurrence.get(b.id) ?? "",
+        );
+      } else cmp = String(a[sortKey]).localeCompare(String(b[sortKey]));
       return sortDir === "asc" ? cmp : -cmp;
     });
     return copy;
-  }, [bills, sortKey, sortDir]);
+  }, [bills, sortKey, sortDir, nextOccurrence]);
 
   function handleDelete(id: string) {
     if (!confirm("Delete this bill? This can't be undone.")) return;
@@ -210,29 +239,52 @@ export function BillsClient({
                   >
                     {formatSigned(bill)}
                   </td>
-                  <td className="px-3 py-2 tabular-nums">{formatDate(bill.next_due_date)}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      onClick={() => handleToggleActive(bill)}
-                      className="text-xs underline decoration-dotted text-foreground/60 transition-colors hover:text-accent"
-                      disabled={isPending}
-                    >
-                      {bill.active ? "active" : "paused"}
-                    </button>
+                  <td className="px-3 py-2 tabular-nums">
+                    {(() => {
+                      const next = nextOccurrence.get(bill.id);
+                      return next ? formatDate(next) : "—";
+                    })()}
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setEditingBill(bill)}
-                      className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                  <td className="px-3 py-2 text-foreground/60">
+                    {bill.active ? "active" : "paused"}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <RowMenu
+                      open={openMenuId === bill.id}
+                      onToggle={() =>
+                        setOpenMenuId((id) => (id === bill.id ? null : bill.id))
+                      }
+                      onClose={() => setOpenMenuId(null)}
                     >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(bill.id)}
-                      className="text-xs text-red-500 transition-colors hover:text-red-400"
-                    >
-                      Delete
-                    </button>
+                      <button
+                        onClick={() => {
+                          handleToggleActive(bill);
+                          setOpenMenuId(null);
+                        }}
+                        disabled={isPending}
+                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-foreground/5"
+                      >
+                        {bill.active ? "Pause" : "Resume"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingBill(bill);
+                          setOpenMenuId(null);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-foreground/5"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDelete(bill.id);
+                          setOpenMenuId(null);
+                        }}
+                        className="block w-full px-3 py-2 text-left text-sm text-red-500 transition-colors hover:bg-red-500/5"
+                      >
+                        Delete
+                      </button>
+                    </RowMenu>
                   </td>
                 </tr>
               ))}
@@ -294,6 +346,39 @@ export function BillsClient({
         />
       )}
     </div>
+  );
+}
+
+function RowMenu({
+  open,
+  onToggle,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <span className="relative inline-block">
+      <button
+        onClick={onToggle}
+        aria-label="Actions"
+        aria-expanded={open}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-accent"
+      >
+        ⋮
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-md border border-foreground/15 bg-background shadow-lg">
+            {children}
+          </div>
+        </>
+      )}
+    </span>
   );
 }
 

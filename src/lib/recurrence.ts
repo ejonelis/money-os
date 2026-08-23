@@ -120,6 +120,37 @@ export function occurrencesInMonth(
  * and reuses occurrencesInMonth, so it inherits the same forward-only
  * behavior.
  */
+/**
+ * The next real occurrence on or after `fromISO` (typically today) — not
+ * the rule's raw anchor date, which stays fixed wherever it was first set
+ * and drifts into the past as time passes. Walks forward month by month
+ * (up to 14, enough to guarantee a hit even for a yearly rule) reusing
+ * occurrencesInMonth, so it can never disagree with what actually gets
+ * materialized.
+ */
+export function nextOccurrenceOnOrAfter(
+  rule: RecurringRuleLike,
+  fromISO: string,
+): string | null {
+  const anchor = parseISODate(rule.next_due_date);
+  const anchorISO = toISO(anchor.y, anchor.m, anchor.d);
+  const searchStart = fromISO < anchorISO ? anchor : parseISODate(fromISO);
+  const lowerBound = fromISO < anchorISO ? anchorISO : fromISO;
+
+  let y = searchStart.y;
+  let m = searchStart.m;
+  for (let i = 0; i < 14; i++) {
+    const dates = occurrencesInMonth(rule, y, m).filter((d) => d >= lowerBound);
+    if (dates.length > 0) return dates[0];
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return null;
+}
+
 export function occurrencesInRange(
   rule: RecurringRuleLike,
   fromISO: string,
