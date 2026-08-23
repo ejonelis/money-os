@@ -78,6 +78,7 @@ export function ForecastClient({
     | { step: "confirmBill"; recurringRuleId: string }
     | null
   >(null);
+  const [rowActionTx, setRowActionTx] = useState<SavedTransaction | null>(null);
   const [isPending, startTransition] = useTransition();
   const today = todayISO();
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -281,7 +282,7 @@ export function ForecastClient({
               <th className="px-3 py-2 font-normal">Description</th>
               <th className="px-3 py-2 text-right font-normal">Amount</th>
               <th className="px-3 py-2 text-right font-normal">Balance</th>
-              <th className="px-3 py-2 font-normal"></th>
+              <th className="hidden px-3 py-2 font-normal sm:table-cell"></th>
             </tr>
           </thead>
           <tbody>
@@ -294,14 +295,18 @@ export function ForecastClient({
               <td className="px-3 py-2 text-right tabular-nums">
                 {currency.format(currentBalance)}
               </td>
-              <td />
+              <td className="hidden sm:table-cell" />
             </tr>
             {rows.map((tx) => {
               const overdue = tx.date < today;
               return (
                 <tr
                   key={tx.id}
-                  className={`border-b border-foreground/10 last:border-0 ${
+                  onClick={() => {
+                    if (window.innerWidth >= 640) return;
+                    setRowActionTx(tx);
+                  }}
+                  className={`cursor-pointer border-b border-foreground/10 last:border-0 sm:cursor-default ${
                     overdue ? "bg-amber-500/5" : ""
                   }`}
                 >
@@ -321,7 +326,7 @@ export function ForecastClient({
                   >
                     {currency.format(tx.balance)}
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <td className="hidden px-3 py-2 text-right whitespace-nowrap sm:table-cell">
                     <button
                       onClick={() => handleClear(tx)}
                       disabled={isPending}
@@ -470,6 +475,38 @@ export function ForecastClient({
             setEditingTx(null);
             router.refresh();
           }}
+        />
+      )}
+
+      {rowActionTx && (
+        <ChoiceModal
+          title={rowActionTx.merchant ?? "Entry"}
+          message={`${formatDate(rowActionTx.date)} · ${formatSignedAmount(rowActionTx.amount)}`}
+          options={[
+            {
+              label: "Mark cleared",
+              onClick: () => {
+                handleClear(rowActionTx);
+                setRowActionTx(null);
+              },
+            },
+            {
+              label: "Edit",
+              onClick: () => {
+                setEditingTx(rowActionTx);
+                setRowActionTx(null);
+              },
+            },
+            {
+              label: "Delete",
+              danger: true,
+              onClick: () => {
+                handleDelete(rowActionTx);
+                setRowActionTx(null);
+              },
+            },
+          ]}
+          onCancel={() => setRowActionTx(null)}
         />
       )}
 
