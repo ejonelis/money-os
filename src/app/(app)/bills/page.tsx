@@ -25,7 +25,23 @@ export default async function BillsPage() {
     throw new Error(billsError?.message ?? accountsError?.message);
   }
 
+  const ruleIds = (bills ?? []).map((b) => b.id);
+  const { data: clearedOccurrences, error: clearedError } =
+    ruleIds.length > 0
+      ? await supabase
+          .from("transactions")
+          .select("recurring_rule_id, date")
+          .in("recurring_rule_id", ruleIds)
+          .eq("status", "actual")
+      : { data: [], error: null };
+
+  if (clearedError) throw new Error(clearedError.message);
+
   return (
-    <BillsClient initialBills={bills ?? []} accounts={accounts ?? []} />
+    <BillsClient
+      initialBills={bills ?? []}
+      accounts={accounts ?? []}
+      clearedOccurrences={clearedOccurrences ?? []}
+    />
   );
 }

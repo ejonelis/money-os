@@ -23,11 +23,17 @@ import {
   type SavedTransaction,
   type TxFormState,
 } from "./actions";
+import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 
 const currency = new Intl.NumberFormat("en-IE", {
   style: "currency",
   currency: "EUR",
 });
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -73,6 +79,10 @@ export function ForecastClient({
   >(null);
   const [isPending, startTransition] = useTransition();
   const today = todayISO();
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const now = new Date();
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
 
   const planned = useMemo(
     () => transactions.filter((t) => t.status === "planned"),
@@ -104,6 +114,40 @@ export function ForecastClient({
 
   const endingBalance = rows.length > 0 ? rows[rows.length - 1].balance : currentBalance;
   const firstNegative = rows.find((r) => r.balance < 0);
+
+  const monthEntries = useMemo(() => {
+    const map = new Map<string, CalendarEntry[]>();
+    const monthPrefix = `${calendarYear}-${calendarMonth.toString().padStart(2, "0")}`;
+    for (const tx of rows) {
+      if (!tx.date.startsWith(monthPrefix)) continue;
+      const list = map.get(tx.date) ?? [];
+      list.push({ id: tx.id, label: tx.merchant ?? "", amount: tx.amount });
+      map.set(tx.date, list);
+    }
+    return map;
+  }, [rows, calendarYear, calendarMonth]);
+
+  const monthNet = useMemo(() => {
+    let total = 0;
+    for (const list of monthEntries.values()) {
+      for (const e of list) total += e.amount;
+    }
+    return total;
+  }, [monthEntries]);
+
+  function shiftMonth(delta: number) {
+    let m = calendarMonth + delta;
+    let y = calendarYear;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    } else if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    setCalendarMonth(m);
+    setCalendarYear(y);
+  }
 
   function upsertLocal(tx: SavedTransaction) {
     setTransactions((prev) => {
@@ -209,6 +253,22 @@ export function ForecastClient({
         }}
       />
 
+      <div className="flex items-center gap-1 rounded-md border border-foreground/15 p-1 w-fit">
+        <button
+          onClick={() => setView("list")}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+        >
+          List
+        </button>
+        <button
+          onClick={() => setView("calendar")}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+        >
+          Calendar
+        </button>
+      </div>
+
+      {view === "list" ? (
       <div className="overflow-x-auto rounded-md border border-foreground/15">
         <table className="w-full text-sm">
           <thead>
@@ -308,6 +368,44 @@ export function ForecastClient({
           )}
         </table>
       </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="rounded-md border border-accent/30 px-2 py-1 text-sm text-accent transition-colors hover:bg-accent/10"
+            >
+              ←
+            </button>
+            <div className="text-center">
+              <div className="font-medium">
+                {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
+              </div>
+              <div
+                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"}`}
+              >
+                {monthNet >= 0 ? "+" : "-"}
+                {currency.format(Math.abs(monthNet))} net
+              </div>
+            </div>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="rounded-md border border-accent/30 px-2 py-1 text-sm text-accent transition-colors hover:bg-accent/10"
+            >
+              →
+            </button>
+          </div>
+          <CalendarGrid
+            year={calendarYear}
+            month={calendarMonth}
+            entries={monthEntries}
+            onSelect={(id) => {
+              const tx = rows.find((r) => r.id === id);
+              if (tx) setEditingTx(tx);
+            }}
+          />
+        </div>
+      )}
 
       {onHold.length > 0 && (
         <div className="space-y-2">

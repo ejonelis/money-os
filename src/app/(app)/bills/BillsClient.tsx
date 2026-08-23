@@ -22,8 +22,10 @@ import {
   nextOccurrenceOnOrAfter,
   occurrencesInMonth,
 } from "@/lib/recurrence";
+import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 
 type Bill = SavedBill;
+type ClearedOccurrence = { recurring_rule_id: string | null; date: string };
 
 type Account = { id: string; name: string };
 
@@ -56,16 +58,17 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type SortKey = "next_due_date" | "description" | "amount" | "frequency";
 
 export function BillsClient({
   initialBills,
   accounts,
+  clearedOccurrences,
 }: {
   initialBills: Bill[];
   accounts: Account[];
+  clearedOccurrences: ClearedOccurrence[];
 }) {
   const [bills, setBills] = useState(initialBills);
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -143,19 +146,42 @@ export function BillsClient({
     });
   }
 
+  const clearedKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of clearedOccurrences) {
+      if (c.recurring_rule_id) set.add(`${c.recurring_rule_id}:${c.date}`);
+    }
+    return set;
+  }, [clearedOccurrences]);
+
+  // Occurrences the calendar would otherwise predict, minus any that are
+  // already cleared/paid — the calendar should only show what's still
+  // outstanding, not restate history.
   const monthOccurrences = useMemo(() => {
     const map = new Map<string, Bill[]>();
     for (const bill of bills) {
       if (!bill.active) continue;
       const dates = occurrencesInMonth(bill, calendarYear, calendarMonth);
       for (const date of dates) {
+        if (clearedKeys.has(`${bill.id}:${date}`)) continue;
         const list = map.get(date) ?? [];
         list.push(bill);
         map.set(date, list);
       }
     }
     return map;
-  }, [bills, calendarYear, calendarMonth]);
+  }, [bills, calendarYear, calendarMonth, clearedKeys]);
+
+  const monthEntries = useMemo(() => {
+    const map = new Map<string, CalendarEntry[]>();
+    for (const [date, list] of monthOccurrences) {
+      map.set(
+        date,
+        list.map((b) => ({ id: b.id, label: b.description, amount: signedAmount(b) })),
+      );
+    }
+    return map;
+  }, [monthOccurrences]);
 
   const monthNet = useMemo(() => {
     let total = 0;
@@ -328,8 +354,11 @@ export function BillsClient({
           <CalendarGrid
             year={calendarYear}
             month={calendarMonth}
-            occurrences={monthOccurrences}
-            onSelectBill={(bill) => setEditingBill(bill)}
+            entries={monthEntries}
+            onSelect={(id) => {
+              const bill = bills.find((b) => b.id === id);
+              if (bill) setEditingBill(bill);
+            }}
           />
         </div>
       )}
@@ -402,74 +431,6 @@ function Th({
         {active ? (dir === "asc" ? " ↑" : " ↓") : ""}
       </button>
     </th>
-  );
-}
-
-function CalendarGrid({
-  year,
-  month,
-  occurrences,
-  onSelectBill,
-}: {
-  year: number;
-  month: number;
-  occurrences: Map<string, Bill[]>;
-  onSelectBill: (bill: Bill) => void;
-}) {
-  const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
-  const totalDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const cells: (number | null)[] = [
-    ...Array(firstWeekday).fill(null),
-    ...Array.from({ length: totalDays }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  return (
-    <div className="overflow-x-auto rounded-md border border-foreground/15">
-      <div className="grid min-w-[640px] grid-cols-7 border-b border-foreground/15 text-xs text-foreground/60">
-        {WEEKDAY_NAMES.map((d) => (
-          <div key={d} className="px-2 py-2 text-center">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid min-w-[640px] grid-cols-7">
-        {cells.map((day, i) => {
-          const iso = day
-            ? `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
-            : null;
-          const dayBills = iso ? occurrences.get(iso) ?? [] : [];
-          return (
-            <div
-              key={i}
-              className="min-h-24 border-b border-r border-foreground/10 p-1.5 last:border-r-0 [&:nth-child(7n)]:border-r-0"
-            >
-              {day && (
-                <>
-                  <div className="text-xs text-foreground/40">{day}</div>
-                  <div className="mt-1 space-y-1">
-                    {dayBills.map((b) => (
-                      <button
-                        key={b.id}
-                        onClick={() => onSelectBill(b)}
-                        className={`block w-full truncate rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:bg-foreground/20 ${
-                          b.kind === "income"
-                            ? "bg-emerald-600/10 text-emerald-600 dark:text-emerald-400"
-                            : "bg-foreground/10"
-                        }`}
-                        title={`${b.description} — ${formatSigned(b)}`}
-                      >
-                        {b.description} · {formatSigned(b)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
