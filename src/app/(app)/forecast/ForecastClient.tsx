@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import {
-  startTransition,
   useActionState,
   useEffect,
   useMemo,
   useState,
   useTransition,
+  type FormEvent,
 } from "react";
 import {
   addTransaction,
@@ -18,12 +18,11 @@ import {
   pauseBillFromForecast,
   removeBillEntirely,
   setTransactionStatus,
-  updateCurrentBalance,
   updateTransaction,
-  type BalanceFormState,
   type SavedTransaction,
   type TxFormState,
 } from "./actions";
+import { reconcileBalance, type LeftoverEntry } from "./reconcile";
 import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 import { ChoiceModal } from "@/components/ChoiceModal";
 
@@ -73,11 +72,13 @@ export function ForecastClient({
   startingBalance,
   startingBalanceDate,
   initialTransactions,
+  existingCategories,
 }: {
   selectedAccountId: string;
   startingBalance: number;
   startingBalanceDate: string | null;
   initialTransactions: SavedTransaction[];
+  existingCategories: string[];
 }) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -277,9 +278,15 @@ export function ForecastClient({
       <UpdateBalanceForm
         accountId={selectedAccountId}
         currentBalance={currentBalance}
-        onSaved={(snapshot) => {
+        candidates={planned.filter((t) => t.date <= today)}
+        existingCategories={existingCategories}
+        onSaved={(snapshot, clearedIds) => {
           setCurrentBalance(snapshot.balance);
           setCurrentBalanceDate(snapshot.as_of_date);
+          if (clearedIds.length > 0) {
+            setTransactions((prev) => prev.filter((t) => !clearedIds.includes(t.id)));
+          }
+          router.refresh();
         }}
       />
 
@@ -644,27 +651,29 @@ export function ForecastClient({
 function UpdateBalanceForm({
   accountId,
   currentBalance,
+  candidates,
+  existingCategories,
   onSaved,
 }: {
   accountId: string;
   currentBalance: number;
-  onSaved: (snapshot: { balance: number; as_of_date: string }) => void;
+  candidates: SavedTransaction[];
+  existingCategories: string[];
+  onSaved: (
+    snapshot: { balance: number; as_of_date: string },
+    clearedIds: string[],
+  ) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<BalanceFormState, FormData>(
-    updateCurrentBalance,
-    undefined,
-  );
+  const [amountInput, setAmountInput] = useState(currentBalance.toString());
+  const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (state?.snapshot) {
-      startTransition(() => {
-        onSaved(state.snapshot!);
-        setOpen(false);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const entered = Number(amountInput);
+    if (Number.isNaN(entered)) return;
+    setPendingNewBalance(entered);
+  }
 
   if (!open) {
     return (
@@ -678,41 +687,272 @@ function UpdateBalanceForm({
   }
 
   return (
-    <form
-      action={formAction}
-      className="flex flex-wrap items-end gap-3 rounded-md border border-foreground/15 p-4"
-    >
-      <input type="hidden" name="account_id" value={accountId} />
-      <div>
-        <label className="mb-1 block text-xs text-foreground/60">
-          Current balance (€)
-        </label>
-        <input
-          name="balance"
-          type="number"
-          step="0.01"
-          defaultValue={currentBalance}
-          required
-          autoFocus
-          className="w-40 rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+    <>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-wrap items-end gap-3 rounded-md border border-foreground/15 p-4"
+      >
+        <div>
+          <label className="mb-1 block text-xs text-foreground/60">
+            Current balance (€)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
+            required
+            autoFocus
+            className="w-40 rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
+        >
+          Cancel
+        </button>
+      </form>
+
+      {pendingNewBalance !== null && (
+        <ReconcileModal
+          accountId={accountId}
+          oldBalance={currentBalance}
+          newBalance={pendingNewBalance}
+          candidates={candidates}
+          existingCategories={existingCategories}
+          onCancel={() => setPendingNewBalance(null)}
+          onDone={(snapshot, clearedIds) => {
+            onSaved(snapshot, clearedIds);
+            setPendingNewBalance(null);
+            setOpen(false);
+          }}
         />
+      )}
+    </>
+  );
+}
+
+function ReconcileModal({
+  accountId,
+  oldBalance,
+  newBalance,
+  candidates,
+  existingCategories,
+  onCancel,
+  onDone,
+}: {
+  accountId: string;
+  oldBalance: number;
+  newBalance: number;
+  candidates: SavedTransaction[];
+  existingCategories: string[];
+  onCancel: () => void;
+  onDone: (
+    snapshot: { balance: number; as_of_date: string },
+    clearedIds: string[],
+  ) => void;
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [leftovers, setLeftovers] = useState<LeftoverEntry[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const diff = newBalance - oldBalance;
+  const explainedByChecked = candidates
+    .filter((c) => checked.has(c.id))
+    .reduce((sum, c) => sum + c.amount, 0);
+  const explainedByLeftovers = leftovers.reduce(
+    (sum, l) => sum + (l.kind === "income" ? Math.abs(l.amount) : -Math.abs(l.amount)),
+    0,
+  );
+  const remaining = diff - explainedByChecked - explainedByLeftovers;
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function updateLeftover(index: number, patch: Partial<LeftoverEntry>) {
+    setLeftovers((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  }
+
+  function addLeftover() {
+    setLeftovers((prev) => [
+      ...prev,
+      {
+        amount: Math.round(Math.abs(remaining) * 100) / 100,
+        kind: remaining >= 0 ? "income" : "expense",
+        payee: "",
+        category: "",
+      },
+    ]);
+  }
+
+  function removeLeftover(index: number) {
+    setLeftovers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    const result = await reconcileBalance(
+      accountId,
+      newBalance,
+      Array.from(checked),
+      leftovers.filter((l) => l.payee.trim() && l.amount !== 0),
+    );
+    setSaving(false);
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
+    onDone(result, Array.from(checked));
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+        <h2 className="mb-1 font-medium">
+          Balance {diff >= 0 ? "up" : "down"} {currency.format(Math.abs(diff))}
+        </h2>
+        <p className="mb-4 text-sm text-foreground/60">Did any of these already happen?</p>
+
+        {candidates.length > 0 ? (
+          <div className="mb-4 space-y-1">
+            {candidates.map((tx) => (
+              <label
+                key={tx.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked.has(tx.id)}
+                  onChange={() => toggle(tx.id)}
+                  className="h-4 w-4 accent-accent"
+                />
+                <span className="flex-1 truncate">{tx.merchant}</span>
+                <span className="tabular-nums text-foreground/60">
+                  {formatSignedAmount(tx.amount)}
+                </span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="mb-4 text-sm text-foreground/40">Nothing due yet to check off.</p>
+        )}
+
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-foreground/60">Anything else?</span>
+          <button
+            type="button"
+            onClick={addLeftover}
+            className="text-xs text-accent transition-colors hover:underline"
+          >
+            + Add
+          </button>
+        </div>
+
+        {leftovers.length > 0 && (
+          <div className="mb-4 space-y-3">
+            {leftovers.map((item, i) => (
+              <div key={i} className="rounded-md border border-foreground/15 p-3">
+                <div className="mb-2 grid grid-cols-2 gap-2">
+                  <select
+                    value={item.kind}
+                    onChange={(e) =>
+                      updateLeftover(i, { kind: e.target.value as "income" | "expense" })
+                    }
+                    className="rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                  >
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={item.amount || ""}
+                    onChange={(e) => updateLeftover(i, { amount: Number(e.target.value) })}
+                    placeholder="Amount (€)"
+                    className="rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                  />
+                </div>
+                <input
+                  value={item.payee}
+                  onChange={(e) => updateLeftover(i, { payee: e.target.value })}
+                  placeholder="Payee / description"
+                  className="mb-2 w-full rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    value={item.category}
+                    onChange={(e) => updateLeftover(i, { category: e.target.value })}
+                    list="reconcile-category-suggestions"
+                    placeholder="Category (optional)"
+                    className="w-full rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLeftover(i)}
+                    className="shrink-0 text-xs text-red-500 transition-colors hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <datalist id="reconcile-category-suggestions">
+              {existingCategories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+        )}
+
+        <p
+          className={`mb-4 text-sm ${
+            Math.abs(remaining) < 0.005
+              ? "text-foreground/40"
+              : "text-amber-600 dark:text-amber-400"
+          }`}
+        >
+          {Math.abs(remaining) < 0.005
+            ? "Fully accounted for."
+            : `Still unexplained: ${formatSignedAmount(remaining)}`}
+        </p>
+
+        {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
-      {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
-      >
-        {pending ? "Saving…" : "Save"}
-      </button>
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
-      >
-        Cancel
-      </button>
-    </form>
+    </div>
   );
 }
 

@@ -29,7 +29,7 @@ export default async function ForecastPage() {
 
   await materializePlannedTransactions(supabase, selectedAccount.id);
 
-  const [{ data: transactions, error: txError }, { data: snapshot }] =
+  const [{ data: transactions, error: txError }, { data: snapshot }, { data: categories }] =
     await Promise.all([
       supabase
         .from("transactions")
@@ -47,6 +47,11 @@ export default async function ForecastPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("categories")
+        .select("name")
+        .eq("household_id", householdId)
+        .order("name", { ascending: true }),
     ]);
 
   if (txError) throw new Error(txError.message);
@@ -57,6 +62,7 @@ export default async function ForecastPage() {
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}
       initialTransactions={transactions ?? []}
+      existingCategories={Array.from(new Set((categories ?? []).map((c) => c.name)))}
     />
   );
 }
