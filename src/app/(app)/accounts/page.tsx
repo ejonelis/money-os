@@ -62,29 +62,39 @@ export default async function AccountsPage() {
       )}
 
       {Array.from(groups.entries()).map(([label, list]) => (
-        <div key={label} className="space-y-3">
-          <h2 className="text-sm font-medium text-foreground/60">{label}</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {list!.map((a) => {
-              const balance = latest.get(a.id);
-              return (
-                <Link
-                  key={a.id}
-                  href={`/accounts/${a.id}`}
-                  className="rounded-md border border-foreground/15 p-4 transition-colors hover:border-accent"
-                >
-                  <div className="text-sm font-medium">{a.name}</div>
-                  <div
-                    className={`mt-1 text-lg font-medium tabular-nums ${
-                      balance !== undefined && balance < 0 ? "text-red-500" : ""
-                    }`}
-                  >
-                    {balance !== undefined ? currency.format(balance) : "—"}
-                  </div>
-                </Link>
-              );
-            })}
+        <div key={label} className="overflow-hidden rounded-md border border-foreground/15">
+          <div className="border-b border-foreground/15 bg-foreground/5 px-4 py-2 text-sm font-medium">
+            {label}
           </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {list!.map((a) => {
+                const balance = latest.get(a.id);
+                return (
+                  <tr
+                    key={a.id}
+                    className="border-b border-foreground/10 transition-colors last:border-0 hover:bg-foreground/5"
+                  >
+                    <td className="p-0">
+                      <Link href={`/accounts/${a.id}`} className="block px-4 py-3">
+                        {a.name}
+                      </Link>
+                    </td>
+                    <td className="p-0 text-right">
+                      <Link
+                        href={`/accounts/${a.id}`}
+                        className={`block px-4 py-3 tabular-nums font-medium ${
+                          balance !== undefined && balance < 0 ? "text-red-500" : ""
+                        }`}
+                      >
+                        {balance !== undefined ? currency.format(balance) : "—"}
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ))}
     </div>
