@@ -67,7 +67,7 @@ export async function createBill(
   }
 
   revalidatePath("/bills");
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   return { bill: data as SavedBill };
 }
 
@@ -103,7 +103,7 @@ export async function updateBill(
     .eq("status", "planned");
 
   revalidatePath("/bills");
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   return { bill: data as SavedBill };
 }
 
@@ -111,7 +111,7 @@ export async function setBillActive(id: string, active: boolean) {
   const supabase = await createClient();
   await supabase.from("recurring_rules").update({ active }).eq("id", id);
   revalidatePath("/bills");
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 export async function deleteBill(id: string) {
@@ -125,5 +125,5 @@ export async function deleteBill(id: string) {
     .eq("status", "planned");
   await supabase.from("recurring_rules").delete().eq("id", id);
   revalidatePath("/bills");
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }

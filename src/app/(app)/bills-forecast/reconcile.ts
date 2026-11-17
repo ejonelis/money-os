@@ -86,7 +86,7 @@ export async function reconcileBalance(
     return { error: error?.message ?? "Could not save balance." };
   }
 
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   revalidatePath("/balances");
   revalidatePath("/accounts");
   return data as { balance: number; as_of_date: string };

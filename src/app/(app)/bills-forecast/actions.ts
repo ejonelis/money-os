@@ -73,7 +73,7 @@ export async function addTransaction(
     return { error: error?.message ?? "Could not add entry." };
   }
 
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   return { transaction: data as SavedTransaction };
 }
 
@@ -117,7 +117,7 @@ export async function updateTransaction(
       .eq("status", "planned");
 
     revalidatePath("/bills");
-    revalidatePath("/forecast");
+    revalidatePath("/bills-forecast");
     return { ruleUpdated: recurringRuleId as string };
   }
 
@@ -148,14 +148,14 @@ export async function updateTransaction(
     );
   }
 
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   return { transaction: data as SavedTransaction };
 }
 
 export async function deleteTransaction(id: string) {
   const supabase = await createClient();
   await supabase.from("transactions").delete().eq("id", id);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 // "Delete just this one" — removes the occurrence and remembers not to
@@ -173,7 +173,7 @@ export async function deleteOccurrenceOnly(
     );
   }
   await supabase.from("transactions").delete().eq("id", id);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 // "Delete all" — clears every still-planned occurrence of this bill from
@@ -186,25 +186,25 @@ export async function deleteAllFutureOccurrences(recurringRuleId: string) {
     .delete()
     .eq("recurring_rule_id", recurringRuleId)
     .eq("status", "planned");
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 export async function removeBillEntirely(recurringRuleId: string) {
   await deleteBill(recurringRuleId);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 // Keeps the bill in Monthly Bills but stops it from generating new
 // occurrences — the "just remove it from Forecast" half of the choice.
 export async function pauseBillFromForecast(recurringRuleId: string) {
   await setBillActive(recurringRuleId, false);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 export async function setTransactionStatus(id: string, status: TxStatus) {
   const supabase = await createClient();
   await supabase.from("transactions").update({ status }).eq("id", id);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
 }
 
 // Marking something cleared means it's really happened — the displayed
@@ -226,7 +226,7 @@ export async function clearTransaction(
       balance: newBalance,
     }),
   ]);
-  revalidatePath("/forecast");
+  revalidatePath("/bills-forecast");
   revalidatePath("/balances");
 }
 
