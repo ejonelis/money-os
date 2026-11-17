@@ -17,7 +17,7 @@ export default async function BalancesPage() {
   if (accountsError) throw new Error(accountsError.message);
   if (!accounts || accounts.length === 0) {
     return (
-      <p className="text-sm text-foreground/60">
+      <p className="text-sm text-muted">
         No accounts yet — nothing to track balances for.
       </p>
     );

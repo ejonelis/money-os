@@ -15,7 +15,7 @@ export function AppNav({
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="border-b border-foreground/10">
+    <header className="border-b border-hairline">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
         <Link href="/dashboard" className="font-semibold tracking-tight">
           Money OS
@@ -27,7 +27,7 @@ export function AppNav({
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm text-foreground/60 transition-colors hover:text-accent"
+              className="text-sm text-muted transition-colors hover:text-accent"
             >
               {link.label}
             </Link>
@@ -36,7 +36,7 @@ export function AppNav({
         <div className="hidden items-center gap-4 sm:flex">
           <Link
             href="/account/set-password"
-            className="text-sm text-foreground/60 transition-colors hover:text-accent"
+            className="text-sm text-muted transition-colors hover:text-accent"
           >
             {email}
           </Link>
@@ -82,14 +82,14 @@ export function AppNav({
 
       {/* Mobile menu panel */}
       {open && (
-        <div className="border-t border-foreground/10 sm:hidden">
+        <div className="border-t border-hairline sm:hidden">
           <nav className="mx-auto flex max-w-4xl flex-col px-6 py-2">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="border-b border-foreground/10 py-3 text-sm text-foreground/80 transition-colors last:border-0 hover:text-accent"
+                className="border-b border-hairline py-3 text-sm text-foreground/80 transition-colors last:border-0 hover:text-accent"
               >
                 {link.label}
               </Link>
@@ -97,7 +97,7 @@ export function AppNav({
             <Link
               href="/account/set-password"
               onClick={() => setOpen(false)}
-              className="border-b border-foreground/10 py-3 text-sm text-foreground/60 transition-colors hover:text-accent"
+              className="border-b border-hairline py-3 text-sm text-muted transition-colors hover:text-accent"
             >
               {email}
             </Link>

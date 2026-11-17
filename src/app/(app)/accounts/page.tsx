@@ -48,22 +48,17 @@ export default async function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Accounts</h1>
-        <p className="text-sm text-foreground/60">
-          Open an account to see its balance and log payments.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold">Accounts</h1>
 
       {(!accounts || accounts.length === 0) && (
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-muted">
           No accounts yet — add one from the Net Worth page.
         </p>
       )}
 
       {Array.from(groups.entries()).map(([label, list]) => (
-        <div key={label} className="overflow-hidden rounded-md border border-foreground/15">
-          <div className="border-b border-foreground/15 bg-foreground/5 px-4 py-2 text-sm font-medium">
+        <div key={label} className="overflow-hidden rounded-lg border border-hairline shadow-card">
+          <div className="border-b border-hairline bg-surface px-4 py-2 text-sm font-medium">
             {label}
           </div>
           <table className="w-full text-sm">
@@ -73,7 +68,7 @@ export default async function AccountsPage() {
                 return (
                   <tr
                     key={a.id}
-                    className="border-b border-foreground/10 transition-colors last:border-0 hover:bg-foreground/5"
+                    className="border-b border-hairline transition-colors last:border-0 hover:bg-surface"
                   >
                     <td className="p-0">
                       <Link href={`/accounts/${a.id}`} className="block px-4 py-3">

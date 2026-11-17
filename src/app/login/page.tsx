@@ -42,7 +42,7 @@ export default function LoginPage() {
   if (recovering) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-        <p className="text-sm text-foreground/60">Signing you in…</p>
+        <p className="text-sm text-muted">Signing you in…</p>
       </main>
     );
   }
@@ -52,7 +52,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Money OS</h1>
-          <p className="text-sm text-foreground/60">Sign in to your household.</p>
+          <p className="text-sm text-muted">Sign in to your household.</p>
         </div>
 
         <form action={action} className="space-y-3">
@@ -62,7 +62,7 @@ export default function LoginPage() {
             required
             autoComplete="email"
             placeholder="you@example.com"
-            className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/40 focus:border-foreground/40"
+            className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm outline-none placeholder:text-foreground/40"
           />
           <input
             name="password"
@@ -70,7 +70,7 @@ export default function LoginPage() {
             required
             autoComplete="current-password"
             placeholder="Password"
-            className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/40 focus:border-foreground/40"
+            className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm outline-none placeholder:text-foreground/40"
           />
           <button
             type="submit"

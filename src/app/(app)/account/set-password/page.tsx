@@ -9,8 +9,8 @@ export default function SetPasswordPage() {
   return (
     <div className="mx-auto max-w-sm space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Set a password</h1>
-        <p className="text-sm text-foreground/60">
+        <h1 className="text-2xl font-semibold">Set a password</h1>
+        <p className="text-sm text-muted">
           Choose a password for signing in going forward.
         </p>
       </div>
@@ -22,7 +22,7 @@ export default function SetPasswordPage() {
           minLength={8}
           autoComplete="new-password"
           placeholder="New password"
-          className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/40 focus:border-foreground/40"
+          className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm outline-none placeholder:text-foreground/40"
         />
         <input
           name="confirm"
@@ -31,7 +31,7 @@ export default function SetPasswordPage() {
           minLength={8}
           autoComplete="new-password"
           placeholder="Confirm password"
-          className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-foreground/40 focus:border-foreground/40"
+          className="w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm outline-none placeholder:text-foreground/40"
         />
         <button
           type="submit"

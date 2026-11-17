@@ -99,7 +99,7 @@ export function AccountLedgerClient({
       <div>
         <Link
           href="/accounts"
-          className="text-sm text-foreground/60 transition-colors hover:text-accent"
+          className="text-sm text-muted transition-colors hover:text-accent"
         >
           ← Accounts
         </Link>
@@ -107,7 +107,7 @@ export function AccountLedgerClient({
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{account.name}</h1>
+          <h1 className="text-2xl font-semibold">{account.name}</h1>
           <p
             className={`text-lg font-medium tabular-nums ${
               currentBalance < 0 ? "text-red-500" : ""
@@ -125,10 +125,10 @@ export function AccountLedgerClient({
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-foreground/15">
+      <div className="overflow-x-auto rounded-lg border border-hairline shadow-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-foreground/15 text-left text-foreground/60">
+            <tr className="border-b border-hairline text-left text-muted">
               <th className="px-3 py-2 font-normal">Date</th>
               <th className="px-3 py-2 font-normal">Description</th>
               <th className="px-3 py-2 text-right font-normal">Amount</th>
@@ -138,7 +138,7 @@ export function AccountLedgerClient({
           </thead>
           <tbody>
             {priorHistory.map((tx) => (
-              <tr key={tx.id} className="border-b border-foreground/10 text-foreground/40">
+              <tr key={tx.id} className="border-b border-hairline text-foreground/40">
                 <td className="px-3 py-2 tabular-nums">{formatDate(tx.date)}</td>
                 <td className="px-3 py-2">{tx.merchant}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
@@ -148,7 +148,7 @@ export function AccountLedgerClient({
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button
                     onClick={() => setEditingTx(tx)}
-                    className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                    className="mr-3 text-xs text-muted transition-colors hover:text-accent"
                   >
                     Edit
                   </button>
@@ -161,7 +161,7 @@ export function AccountLedgerClient({
                 </td>
               </tr>
             ))}
-            <tr className="border-b border-foreground/10 text-foreground/40">
+            <tr className="border-b border-hairline text-foreground/40">
               <td className="px-3 py-2" colSpan={3}>
                 {startingBalanceDate
                   ? `Starting balance as of ${formatDate(startingBalanceDate)}`
@@ -173,7 +173,7 @@ export function AccountLedgerClient({
               <td />
             </tr>
             {rows.map((tx) => (
-              <tr key={tx.id} className="border-b border-foreground/10 last:border-0">
+              <tr key={tx.id} className="border-b border-hairline last:border-0">
                 <td className="px-3 py-2 tabular-nums">{formatDate(tx.date)}</td>
                 <td className="px-3 py-2">{tx.merchant}</td>
                 <td
@@ -193,7 +193,7 @@ export function AccountLedgerClient({
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button
                     onClick={() => setEditingTx(tx)}
-                    className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                    className="mr-3 text-xs text-muted transition-colors hover:text-accent"
                   >
                     Edit
                   </button>
@@ -260,30 +260,30 @@ function EntryFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-4 font-medium">
           {isNew ? "Log payment" : "Edit entry"}
         </h2>
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="account_id" value={account.id} />
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Description</label>
+            <label className="mb-1 block text-xs text-muted">Description</label>
             <input
               name="description"
               defaultValue={tx?.merchant ?? ""}
               placeholder={account.is_liability ? "e.g. Paid to Danske Bank" : ""}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {!account.is_liability && (
               <div>
-                <label className="mb-1 block text-xs text-foreground/60">Type</label>
+                <label className="mb-1 block text-xs text-muted">Type</label>
                 <select
                   value={kind}
                   onChange={(e) => setKind(e.target.value as "income" | "expense")}
-                  className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                  className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
                 >
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
@@ -291,7 +291,7 @@ function EntryFormModal({
               </div>
             )}
             <div className={account.is_liability ? "col-span-2" : ""}>
-              <label className="mb-1 block text-xs text-foreground/60">
+              <label className="mb-1 block text-xs text-muted">
                 {account.is_liability ? "Amount paid (€)" : "Amount (€)"}
               </label>
               <AmountField
@@ -302,13 +302,13 @@ function EntryFormModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Date</label>
+            <label className="mb-1 block text-xs text-muted">Date</label>
             <input
               name="date"
               type="date"
               defaultValue={tx?.date ?? todayISO()}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
@@ -357,7 +357,7 @@ function AmountField({
         value={magnitude}
         onChange={(e) => setMagnitude(e.target.value)}
         required
-        className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+        className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
       />
       <input type="hidden" name="signed_amount" value={signedAmount} />
     </>

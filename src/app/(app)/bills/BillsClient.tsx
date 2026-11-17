@@ -239,8 +239,8 @@ export function BillsClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Bills</h1>
-          <p className="text-sm text-foreground/60">
+          <h1 className="text-2xl font-semibold">Bills</h1>
+          <p className="text-sm text-muted">
             {bills.filter((b) => b.active).length} active recurring bills
           </p>
         </div>
@@ -252,16 +252,16 @@ export function BillsClient({
         </button>
       </div>
 
-      <div className="flex items-center gap-1 rounded-md border border-foreground/15 p-1 w-fit">
+      <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
         <button
           onClick={() => setView("list")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
         >
           List
         </button>
         <button
           onClick={() => setView("calendar")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
         >
           Calendar
         </button>
@@ -275,12 +275,12 @@ export function BillsClient({
               <div className="mb-1 px-1 text-xs font-medium text-foreground/50">
                 {formatDateShort(group.date)}
               </div>
-              <div className="divide-y divide-foreground/10 overflow-hidden rounded-md border border-foreground/15">
+              <div className="divide-y divide-hairline overflow-hidden rounded-lg border border-hairline shadow-card">
                 {group.bills.map((bill) => (
                   <button
                     key={bill.id}
                     onClick={() => setActionBill(bill)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-foreground/5 ${
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-surface ${
                       !bill.active ? "opacity-40" : ""
                     }`}
                   >
@@ -307,10 +307,10 @@ export function BillsClient({
           )}
         </div>
 
-        <div className="hidden overflow-x-auto rounded-md border border-foreground/15 sm:block">
+        <div className="hidden overflow-x-auto rounded-lg border border-hairline shadow-card sm:block">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-foreground/15 text-left text-foreground/60">
+              <tr className="border-b border-hairline text-left text-muted">
                 <Th label="Description" onClick={() => toggleSort("description")} active={sortKey === "description"} dir={sortDir} />
                 <th className="px-3 py-2 font-normal">Account</th>
                 <Th label="Frequency" onClick={() => toggleSort("frequency")} active={sortKey === "frequency"} dir={sortDir} />
@@ -324,11 +324,11 @@ export function BillsClient({
               {sortedBills.map((bill) => (
                 <tr
                   key={bill.id}
-                  className={`border-b border-foreground/10 last:border-0 ${!bill.active ? "opacity-40" : ""}`}
+                  className={`border-b border-hairline last:border-0 ${!bill.active ? "opacity-40" : ""}`}
                 >
                   <td className="px-3 py-2">{bill.description}</td>
-                  <td className="px-3 py-2 text-foreground/60">{accountName(bill.account_id)}</td>
-                  <td className="px-3 py-2 text-foreground/60">{FREQUENCY_LABELS[bill.frequency]}</td>
+                  <td className="px-3 py-2 text-muted">{accountName(bill.account_id)}</td>
+                  <td className="px-3 py-2 text-muted">{FREQUENCY_LABELS[bill.frequency]}</td>
                   <td
                     className={`px-3 py-2 text-right tabular-nums ${bill.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
                   >
@@ -340,7 +340,7 @@ export function BillsClient({
                       return next ? formatDate(next) : "—";
                     })()}
                   </td>
-                  <td className="px-3 py-2 text-foreground/60">
+                  <td className="px-3 py-2 text-muted">
                     {bill.active ? "active" : "paused"}
                   </td>
                   <td className="px-3 py-2 text-right">
@@ -357,7 +357,7 @@ export function BillsClient({
                           setOpenMenuId(null);
                         }}
                         disabled={isPending}
-                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-foreground/5"
+                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-surface"
                       >
                         {bill.active ? "Pause" : "Resume"}
                       </button>
@@ -366,7 +366,7 @@ export function BillsClient({
                           setEditingBill(bill);
                           setOpenMenuId(null);
                         }}
-                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-foreground/5"
+                        className="block w-full px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-surface"
                       >
                         Edit
                       </button>
@@ -408,7 +408,7 @@ export function BillsClient({
                 {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
               </div>
               <div
-                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"}`}
+                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted"}`}
               >
                 {monthNet >= 0 ? "+" : "-"}
                 {currency.format(Math.abs(monthNet))} net
@@ -497,14 +497,14 @@ function RowMenu({
         onClick={onToggle}
         aria-label="Actions"
         aria-expanded={open}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-accent"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-accent"
       >
         ⋮
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} />
-          <div className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-md border border-foreground/15 bg-background shadow-lg">
+          <div className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-hairline bg-background shadow-lg">
             {children}
           </div>
         </>
@@ -561,25 +561,25 @@ function BillFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-4 font-medium">{isNew ? "Add bill" : "Edit bill"}</h2>
         <form action={formAction} className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Description</label>
+            <label className="mb-1 block text-xs text-muted">Description</label>
             <input
               name="description"
               defaultValue={bill?.description}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Account</label>
+            <label className="mb-1 block text-xs text-muted">Account</label>
             <select
               name="account_id"
               defaultValue={bill?.account_id ?? accounts[0]?.id}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -590,18 +590,18 @@ function BillFormModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">Type</label>
+              <label className="mb-1 block text-xs text-muted">Type</label>
               <select
                 name="kind"
                 defaultValue={bill?.kind ?? "expense"}
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               >
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">Amount (€)</label>
+              <label className="mb-1 block text-xs text-muted">Amount (€)</label>
               <input
                 name="amount"
                 type="number"
@@ -609,16 +609,16 @@ function BillFormModal({
                 min="0.01"
                 defaultValue={bill?.amount}
                 required
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Frequency</label>
+            <label className="mb-1 block text-xs text-muted">Frequency</label>
             <select
               name="frequency"
               defaultValue={bill?.frequency ?? "monthly"}
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             >
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>
@@ -628,13 +628,13 @@ function BillFormModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Next due date</label>
+            <label className="mb-1 block text-xs text-muted">Next due date</label>
             <input
               name="next_due_date"
               type="date"
               defaultValue={bill?.next_due_date}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}

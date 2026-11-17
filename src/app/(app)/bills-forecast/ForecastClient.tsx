@@ -250,8 +250,8 @@ export function ForecastClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Bills Forecast</h1>
-          <p className="text-sm text-foreground/60">
+          <h1 className="text-2xl font-semibold">Bills Forecast</h1>
+          <p className="text-sm text-muted">
             {currentBalanceDate
               ? `Balance ${currency.format(currentBalance)} as of ${formatDate(currentBalanceDate)}`
               : "No balance set yet — starting from €0.00"}
@@ -290,16 +290,16 @@ export function ForecastClient({
         }}
       />
 
-      <div className="flex items-center gap-1 rounded-md border border-foreground/15 p-1 w-fit">
+      <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
         <button
           onClick={() => setView("list")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
         >
           List
         </button>
         <button
           onClick={() => setView("calendar")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-foreground/60 hover:text-accent"}`}
+          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
         >
           Calendar
         </button>
@@ -308,7 +308,7 @@ export function ForecastClient({
       {view === "list" ? (
       <>
       <div className="space-y-4 sm:hidden">
-        <div className="rounded-md border border-foreground/15 px-3 py-2 text-sm text-foreground/60">
+        <div className="rounded-lg border border-hairline shadow-card px-3 py-2 text-sm text-muted">
           {currentBalanceDate
             ? `Balance as of ${formatDateShort(currentBalanceDate)}`
             : "Starting balance"}
@@ -323,14 +323,14 @@ export function ForecastClient({
             <div className="mb-1 px-1 text-xs font-medium text-foreground/50">
               {formatDateShort(group.date)}
             </div>
-            <div className="divide-y divide-foreground/10 overflow-hidden rounded-md border border-foreground/15">
+            <div className="divide-y divide-hairline overflow-hidden rounded-lg border border-hairline shadow-card">
               {group.entries.map((tx) => {
                 const overdue = tx.date < today;
                 return (
                   <button
                     key={tx.id}
                     onClick={() => setRowActionTx(tx)}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-foreground/5 ${
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-surface ${
                       overdue ? "bg-amber-500/5" : ""
                     }`}
                   >
@@ -365,7 +365,7 @@ export function ForecastClient({
         )}
 
         {rows.length > 0 && (
-          <div className="flex items-center justify-between rounded-md border border-foreground/15 px-3 py-2 text-sm font-medium">
+          <div className="flex items-center justify-between rounded-lg border border-hairline shadow-card px-3 py-2 text-sm font-medium">
             <span>Ending balance</span>
             <span className={endingBalance < 0 ? "text-red-500" : ""}>
               {currency.format(endingBalance)}
@@ -374,10 +374,10 @@ export function ForecastClient({
         )}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-md border border-foreground/15 sm:block">
+      <div className="hidden overflow-x-auto rounded-lg border border-hairline shadow-card sm:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-foreground/15 text-left text-foreground/60">
+            <tr className="border-b border-hairline text-left text-muted">
               <th className="px-3 py-2 font-normal">Date</th>
               <th className="px-3 py-2 font-normal">Description</th>
               <th className="px-3 py-2 text-right font-normal">Amount</th>
@@ -386,7 +386,7 @@ export function ForecastClient({
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-foreground/10 text-foreground/40">
+            <tr className="border-b border-hairline text-foreground/40">
               <td className="px-3 py-2" colSpan={3}>
                 {currentBalanceDate
                   ? `Balance as of ${formatDate(currentBalanceDate)}`
@@ -402,7 +402,7 @@ export function ForecastClient({
               return (
                 <tr
                   key={tx.id}
-                  className={`border-b border-foreground/10 last:border-0 ${
+                  className={`border-b border-hairline last:border-0 ${
                     overdue ? "bg-amber-500/5" : ""
                   }`}
                 >
@@ -432,7 +432,7 @@ export function ForecastClient({
                     </button>
                     <button
                       onClick={() => setEditingTx(tx)}
-                      className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                      className="mr-3 text-xs text-muted transition-colors hover:text-accent"
                     >
                       Edit
                     </button>
@@ -456,7 +456,7 @@ export function ForecastClient({
           </tbody>
           {rows.length > 0 && (
             <tfoot>
-              <tr className="border-t border-foreground/15 font-medium">
+              <tr className="border-t border-hairline font-medium">
                 <td className="px-3 py-2" colSpan={3}>
                   Ending balance
                 </td>
@@ -488,7 +488,7 @@ export function ForecastClient({
                 {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
               </div>
               <div
-                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"}`}
+                className={`text-xs ${monthNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted"}`}
               >
                 {monthNet >= 0 ? "+" : "-"}
                 {currency.format(Math.abs(monthNet))} net
@@ -515,15 +515,15 @@ export function ForecastClient({
 
       {onHold.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-medium text-foreground/60">
+          <h2 className="text-sm font-medium text-muted">
             Set aside (not counted in the forecast)
           </h2>
-          <div className="overflow-hidden rounded-md border border-foreground/15">
+          <div className="overflow-hidden rounded-lg border border-hairline shadow-card">
             <table className="w-full text-sm">
               <tbody>
                 {onHold.map((tx) => (
-                  <tr key={tx.id} className="border-b border-foreground/10 last:border-0">
-                    <td className="px-3 py-2 tabular-nums text-foreground/60">
+                  <tr key={tx.id} className="border-b border-hairline last:border-0">
+                    <td className="px-3 py-2 tabular-nums text-muted">
                       {formatDate(tx.date)}
                     </td>
                     <td className="px-3 py-2">{tx.merchant}</td>
@@ -539,7 +539,7 @@ export function ForecastClient({
                       </button>
                       <button
                         onClick={() => setEditingTx(tx)}
-                        className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                        className="mr-3 text-xs text-muted transition-colors hover:text-accent"
                       >
                         Edit
                       </button>
@@ -679,7 +679,7 @@ function UpdateBalanceForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-sm text-foreground/60 underline decoration-dotted transition-colors hover:text-accent"
+        className="text-sm text-muted underline decoration-dotted transition-colors hover:text-accent"
       >
         Update today&rsquo;s balance
       </button>
@@ -690,10 +690,10 @@ function UpdateBalanceForm({
     <>
       <form
         onSubmit={handleSubmit}
-        className="flex flex-wrap items-end gap-3 rounded-md border border-foreground/15 p-4"
+        className="flex flex-wrap items-end gap-3 rounded-lg border border-hairline shadow-card p-4"
       >
         <div>
-          <label className="mb-1 block text-xs text-foreground/60">
+          <label className="mb-1 block text-xs text-muted">
             Current balance (€)
           </label>
           <input
@@ -703,7 +703,7 @@ function UpdateBalanceForm({
             onChange={(e) => setAmountInput(e.target.value)}
             required
             autoFocus
-            className="w-40 rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+            className="w-40 rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
           />
         </div>
         <button
@@ -823,18 +823,18 @@ function ReconcileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-1 font-medium">
           Balance {diff >= 0 ? "up" : "down"} {currency.format(Math.abs(diff))}
         </h2>
-        <p className="mb-4 text-sm text-foreground/60">Did any of these already happen?</p>
+        <p className="mb-4 text-sm text-muted">Did any of these already happen?</p>
 
         {candidates.length > 0 ? (
           <div className="mb-4 space-y-1">
             {candidates.map((tx) => (
               <label
                 key={tx.id}
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface"
               >
                 <input
                   type="checkbox"
@@ -843,7 +843,7 @@ function ReconcileModal({
                   className="h-4 w-4 accent-accent"
                 />
                 <span className="flex-1 truncate">{tx.merchant}</span>
-                <span className="tabular-nums text-foreground/60">
+                <span className="tabular-nums text-muted">
                   {formatSignedAmount(tx.amount)}
                 </span>
               </label>
@@ -854,7 +854,7 @@ function ReconcileModal({
         )}
 
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground/60">Anything else?</span>
+          <span className="text-xs font-medium text-muted">Anything else?</span>
           <button
             type="button"
             onClick={addLeftover}
@@ -867,14 +867,14 @@ function ReconcileModal({
         {leftovers.length > 0 && (
           <div className="mb-4 space-y-3">
             {leftovers.map((item, i) => (
-              <div key={i} className="rounded-md border border-foreground/15 p-3">
+              <div key={i} className="rounded-lg border border-hairline shadow-card p-3">
                 <div className="mb-2 grid grid-cols-2 gap-2">
                   <select
                     value={item.kind}
                     onChange={(e) =>
                       updateLeftover(i, { kind: e.target.value as "income" | "expense" })
                     }
-                    className="rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                    className="rounded-md border border-hairline bg-surface px-2 py-1.5 text-sm outline-none"
                   >
                     <option value="expense">Expense</option>
                     <option value="income">Income</option>
@@ -885,14 +885,14 @@ function ReconcileModal({
                     value={item.amount || ""}
                     onChange={(e) => updateLeftover(i, { amount: Number(e.target.value) })}
                     placeholder="Amount (€)"
-                    className="rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                    className="rounded-md border border-hairline bg-surface px-2 py-1.5 text-sm outline-none"
                   />
                 </div>
                 <input
                   value={item.payee}
                   onChange={(e) => updateLeftover(i, { payee: e.target.value })}
                   placeholder="Payee / description"
-                  className="mb-2 w-full rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                  className="mb-2 w-full rounded-md border border-hairline bg-surface px-2 py-1.5 text-sm outline-none"
                 />
                 <div className="flex items-center gap-2">
                   <input
@@ -900,7 +900,7 @@ function ReconcileModal({
                     onChange={(e) => updateLeftover(i, { category: e.target.value })}
                     list="reconcile-category-suggestions"
                     placeholder="Category (optional)"
-                    className="w-full rounded-md border border-foreground/15 bg-transparent px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+                    className="w-full rounded-md border border-hairline bg-surface px-2 py-1.5 text-sm outline-none"
                   />
                   <button
                     type="button"
@@ -986,7 +986,7 @@ function TransactionFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-4 font-medium">{isNew ? "Add entry" : "Edit entry"}</h2>
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="account_id" value={accountId} />
@@ -995,8 +995,8 @@ function TransactionFormModal({
               <input type="hidden" name="recurring_rule_id" value={tx!.recurring_rule_id!} />
               <input type="hidden" name="original_date" value={tx!.date} />
               <input type="hidden" name="scope" value={scope} />
-              <div className="rounded-md border border-foreground/15 p-3">
-                <p className="mb-2 text-xs text-foreground/60">
+              <div className="rounded-lg border border-hairline shadow-card p-3">
+                <p className="mb-2 text-xs text-muted">
                   This is a repeating bill. Apply this change to:
                 </p>
                 <label className="mb-1 flex items-center gap-2 text-sm">
@@ -1021,28 +1021,28 @@ function TransactionFormModal({
             </>
           )}
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Description</label>
+            <label className="mb-1 block text-xs text-muted">Description</label>
             <input
               name="description"
               defaultValue={tx?.merchant ?? ""}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">Type</label>
+              <label className="mb-1 block text-xs text-muted">Type</label>
               <select
                 name="kind"
                 defaultValue={tx && tx.amount >= 0 ? "income" : "expense"}
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               >
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">Amount (€)</label>
+              <label className="mb-1 block text-xs text-muted">Amount (€)</label>
               <input
                 name="amount"
                 type="number"
@@ -1050,18 +1050,18 @@ function TransactionFormModal({
                 min="0.01"
                 defaultValue={tx ? Math.abs(tx.amount) : undefined}
                 required
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Date</label>
+            <label className="mb-1 block text-xs text-muted">Date</label>
             <input
               name="date"
               type="date"
               defaultValue={tx?.date ?? todayISO()}
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           <label className="flex items-center gap-2 text-sm">

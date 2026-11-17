@@ -117,7 +117,7 @@ export function NetWorthClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Net Worth</h1>
+          <h1 className="text-2xl font-semibold">Net Worth</h1>
           <p
             className={`text-lg font-medium tabular-nums ${netWorth < 0 ? "text-red-500" : ""}`}
           >
@@ -133,14 +133,14 @@ export function NetWorthClient({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-foreground/15 p-4">
-          <div className="text-xs text-foreground/60">Assets</div>
+        <div className="rounded-lg border border-hairline shadow-card p-4">
+          <div className="text-xs text-muted">Assets</div>
           <div className="text-lg font-medium tabular-nums">
             {currency.format(totalAssets)}
           </div>
         </div>
-        <div className="rounded-md border border-foreground/15 p-4">
-          <div className="text-xs text-foreground/60">Liabilities (owed)</div>
+        <div className="rounded-lg border border-hairline shadow-card p-4">
+          <div className="text-xs text-muted">Liabilities (owed)</div>
           <div className="text-lg font-medium tabular-nums text-red-500">
             {currency.format(Math.abs(totalLiabilities))}
           </div>
@@ -148,15 +148,15 @@ export function NetWorthClient({
       </div>
 
       {groups.length === 0 && (
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-muted">
           No accounts yet. Add your bank accounts, property, vehicles,
           pensions — anything you own or owe.
         </p>
       )}
 
       {groups.map((group) => (
-        <div key={group.label} className="overflow-hidden rounded-md border border-foreground/15">
-          <div className="flex items-center justify-between border-b border-foreground/15 bg-foreground/5 px-4 py-2">
+        <div key={group.label} className="overflow-hidden rounded-lg border border-hairline shadow-card">
+          <div className="flex items-center justify-between border-b border-hairline bg-surface px-4 py-2">
             <span className="text-sm font-medium">{group.label}</span>
             <span
               className={`text-sm tabular-nums ${group.isLiability ? "text-red-500" : ""}`}
@@ -173,7 +173,7 @@ export function NetWorthClient({
                 return (
                   <tr
                     key={account.id}
-                    className="border-b border-foreground/10 last:border-0"
+                    className="border-b border-hairline last:border-0"
                   >
                     <td className="px-4 py-2">{account.name}</td>
                     <td className="px-4 py-2 text-xs text-foreground/40">
@@ -189,7 +189,7 @@ export function NetWorthClient({
                     <td className="px-4 py-2 text-right whitespace-nowrap">
                       <button
                         onClick={() => setEditingAccount(account)}
-                        className="mr-3 text-xs text-foreground/60 transition-colors hover:text-accent"
+                        className="mr-3 text-xs text-muted transition-colors hover:text-accent"
                       >
                         Edit
                       </button>
@@ -251,28 +251,28 @@ function AccountFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-4 font-medium">{isNew ? "Add account" : "Edit account"}</h2>
         <form action={formAction} className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Name</label>
+            <label className="mb-1 block text-xs text-muted">Name</label>
             <input
               name="name"
               defaultValue={account?.name}
               placeholder="e.g. House, Car, Pension"
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-foreground/60">Category</label>
+            <label className="mb-1 block text-xs text-muted">Category</label>
             <input
               name="group_label"
               list="category-suggestions"
               defaultValue={account?.group_label ?? ""}
               placeholder="e.g. Property"
               required
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
             <datalist id="category-suggestions">
               {CATEGORY_SUGGESTIONS.map((c) => (
@@ -292,7 +292,7 @@ function AccountFormModal({
           </label>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">
+              <label className="mb-1 block text-xs text-muted">
                 {isLiability ? "Amount owed (€)" : "Current value (€)"}
               </label>
               <input
@@ -304,17 +304,17 @@ function AccountFormModal({
                   latestBalance ? Math.abs(latestBalance.balance) : undefined
                 }
                 required
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-foreground/60">As of</label>
+              <label className="mb-1 block text-xs text-muted">As of</label>
               <input
                 name="as_of_date"
                 type="date"
                 defaultValue={todayISO()}
                 required
-                className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               />
             </div>
           </div>

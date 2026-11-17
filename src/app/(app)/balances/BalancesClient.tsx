@@ -123,8 +123,8 @@ export function BalancesClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Balances</h1>
-        <p className="text-sm text-foreground/60">
+        <h1 className="text-2xl font-semibold">Balances</h1>
+        <p className="text-sm text-muted">
           Net worth: {currency.format(latestTotal)}
         </p>
       </div>
@@ -137,10 +137,10 @@ export function BalancesClient({
         onSaved={mergeSaved}
       />
 
-      <div className="overflow-x-auto rounded-md border border-foreground/15">
+      <div className="overflow-x-auto rounded-lg border border-hairline shadow-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-foreground/15 text-left text-foreground/60">
+            <tr className="border-b border-hairline text-left text-muted">
               <th className="px-3 py-2 font-normal">Date</th>
               {accounts.map((a) => (
                 <th key={a.id} className="px-3 py-2 text-right font-normal">
@@ -161,7 +161,7 @@ export function BalancesClient({
               return (
                 <tr
                   key={row.date}
-                  className="border-b border-foreground/10 last:border-0"
+                  className="border-b border-hairline last:border-0"
                 >
                   <td className="px-3 py-2 tabular-nums">{formatDate(row.date)}</td>
                   {accounts.map((a) => {
@@ -220,7 +220,7 @@ function DiffCell({ value }: { value: number | null }) {
           ? "text-emerald-600 dark:text-emerald-400"
           : negative
             ? "text-red-500"
-            : "text-foreground/60"
+            : "text-muted"
       }`}
     >
       {value >= 0 ? "+" : "-"}
@@ -255,23 +255,23 @@ function DailyEntryForm({
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-md border border-foreground/15 p-4"
+      className="space-y-3 rounded-lg border border-hairline shadow-card p-4"
     >
       <div className="flex items-center gap-3">
-        <label className="text-xs text-foreground/60">Date</label>
+        <label className="text-xs text-muted">Date</label>
         <input
           name="date"
           type="date"
           value={date}
           onChange={(e) => onDateChange(e.target.value)}
           required
-          className="rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+          className="rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
         />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {accounts.map((a) => (
           <div key={a.id}>
-            <label className="mb-1 block text-xs text-foreground/60">
+            <label className="mb-1 block text-xs text-muted">
               {a.name}
               {a.is_liability ? " (owed)" : ""}
             </label>
@@ -284,7 +284,7 @@ function DailyEntryForm({
                   ? currency.format(Math.abs(lastKnown.get(a.id)!))
                   : "€0.00"
               }
-              className="w-full rounded-md border border-foreground/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             />
           </div>
         ))}

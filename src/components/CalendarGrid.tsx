@@ -34,8 +34,8 @@ export function CalendarGrid({
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <div className="overflow-x-auto rounded-md border border-foreground/15">
-      <div className="grid min-w-[640px] grid-cols-7 border-b border-foreground/15 text-xs text-foreground/60">
+    <div className="overflow-x-auto rounded-lg border border-hairline shadow-card">
+      <div className="grid min-w-[640px] grid-cols-7 border-b border-hairline text-xs text-muted">
         {WEEKDAY_NAMES.map((d) => (
           <div key={d} className="px-2 py-2 text-center">
             {d}
@@ -51,7 +51,7 @@ export function CalendarGrid({
           return (
             <div
               key={i}
-              className="min-h-24 border-b border-r border-foreground/10 p-1.5 last:border-r-0 [&:nth-child(7n)]:border-r-0"
+              className="min-h-24 border-b border-r border-hairline p-1.5 last:border-r-0 [&:nth-child(7n)]:border-r-0"
             >
               {day && (
                 <>

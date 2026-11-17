@@ -60,23 +60,23 @@ export default async function DebtsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Debts</h1>
+        <h1 className="text-2xl font-semibold">Debts</h1>
         <p className="text-lg font-medium tabular-nums text-red-500">
           {currency.format(total)} remaining
         </p>
       </div>
 
       {debts.length === 0 && (
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-muted">
           No debts tracked yet — add one from the Net Worth page.
         </p>
       )}
 
       {active.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-foreground/15">
+        <div className="overflow-hidden rounded-lg border border-hairline shadow-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-foreground/15 bg-foreground/5 text-left text-foreground/60">
+              <tr className="border-b border-hairline bg-surface text-left text-muted">
                 <th className="px-4 py-2 font-normal">Debt</th>
                 <th className="px-4 py-2 font-normal">Category</th>
                 <th className="px-4 py-2 font-normal">Progress</th>
@@ -85,7 +85,7 @@ export default async function DebtsPage() {
             </thead>
             <tbody>
               {active.map((d) => (
-                <tr key={d.id} className="border-b border-foreground/10 last:border-0">
+                <tr key={d.id} className="border-b border-hairline last:border-0">
                   <td className="px-4 py-2">
                     <Link
                       href={`/accounts/${d.id}`}
@@ -117,7 +117,7 @@ export default async function DebtsPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-foreground/15 font-medium">
+              <tr className="border-t border-hairline font-medium">
                 <td className="px-4 py-2" colSpan={3}>
                   Total owed
                 </td>
@@ -132,14 +132,14 @@ export default async function DebtsPage() {
 
       {paidOff.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-medium text-foreground/60">
+          <h2 className="text-sm font-medium text-muted">
             Paid off 🎉 ({currency.format(totalPaidOff)})
           </h2>
-          <div className="overflow-hidden rounded-md border border-foreground/15">
+          <div className="overflow-hidden rounded-lg border border-hairline shadow-card">
             <table className="w-full text-sm">
               <tbody>
                 {paidOff.map((d) => (
-                  <tr key={d.id} className="border-b border-foreground/10 last:border-0">
+                  <tr key={d.id} className="border-b border-hairline last:border-0">
                     <td className="px-4 py-2 text-foreground/40 line-through">
                       {d.name}
                     </td>
