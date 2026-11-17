@@ -2,15 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { NAV_LINKS } from "./nav-links";
 
-const LINKS = [
-  { href: "/bills-forecast", label: "Bills Forecast" },
-  { href: "/bills", label: "Monthly Bills" },
-  { href: "/balances", label: "Balances" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/debts", label: "Debts" },
-  { href: "/networth", label: "Net Worth" },
-];
 
 export function AppNav({
   email,
@@ -30,7 +23,7 @@ export function AppNav({
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 sm:flex">
-          {LINKS.map((link) => (
+          {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -91,7 +84,7 @@ export function AppNav({
       {open && (
         <div className="border-t border-foreground/10 sm:hidden">
           <nav className="mx-auto flex max-w-4xl flex-col px-6 py-2">
-            {LINKS.map((link) => (
+            {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

@@ -13,7 +13,7 @@ export function ChoiceModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-lg border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-2 font-medium">{title}</h2>
         <p className="mb-4 text-sm text-foreground/60">{message}</p>
         <div className="flex flex-col gap-2">
