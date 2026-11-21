@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { SITE_ROUTES } from "./routes";
+import edited from "./edited.json";
+
+const EDITED = edited as Record<string, string>;
 
 export function SiteMapClient() {
   const [query, setQuery] = useState("");
@@ -39,6 +42,7 @@ export function SiteMapClient() {
             <tr className="border-b border-hairline bg-surface text-left text-muted">
               <th className="px-4 py-2 font-normal">Area</th>
               <th className="px-4 py-2 font-normal">Page</th>
+              <th className="px-4 py-2 font-normal">Edited</th>
               <th className="px-4 py-2 font-normal">Notes</th>
             </tr>
           </thead>
@@ -58,12 +62,13 @@ export function SiteMapClient() {
                     r.path
                   )}
                 </td>
+                <td className="px-4 py-2 tabular-nums text-muted">{EDITED[r.path] ?? "—"}</td>
                 <td className="px-4 py-2 text-muted">{r.note ?? ""}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-foreground/40">
+                <td colSpan={4} className="px-4 py-6 text-center text-foreground/40">
                   No matching pages.
                 </td>
               </tr>
