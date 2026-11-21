@@ -40,47 +40,39 @@ export function AppNav({
 
   return (
     <header className="border-b border-hairline">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
-        <Link
-          href="/dashboard"
-          aria-label="Home"
-          className={`${iconBtn} rounded-full ${
-            pathname === "/dashboard" ? "text-accent" : ""
-          }`}
-        >
-          <Home size={18} strokeWidth={1.6} />
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 lg:flex">
-          {NAV_LINKS.map(({ href, label, icon: Icon, color }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-surface ${
-                  active ? "bg-surface font-medium" : "text-foreground/70"
-                }`}
-              >
-                <Icon size={16} strokeWidth={1.6} color={color} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
+      <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-3">
         <div className="flex items-center gap-1">
           <Link
-            href="/site-map"
-            aria-label="Site map"
+            href="/dashboard"
+            aria-label="Home"
             className={`${iconBtn} rounded-full ${
-              pathname === "/site-map" ? "text-accent" : ""
+              pathname === "/dashboard" ? "text-accent" : ""
             }`}
           >
-            <Search size={18} strokeWidth={1.6} />
+            <Home size={18} strokeWidth={1.6} />
           </Link>
 
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-1 lg:flex">
+            {NAV_LINKS.map(({ href, label, icon: Icon, color }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-surface ${
+                    active ? "bg-surface font-medium" : "text-foreground/70"
+                  }`}
+                >
+                  <Icon size={16} strokeWidth={1.6} color={color} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-1">
           <div ref={userRef} className="relative">
             <button
               type="button"
@@ -116,6 +108,16 @@ export function AppNav({
             )}
           </div>
 
+          <Link
+            href="/site-map"
+            aria-label="Site map"
+            className={`${iconBtn} rounded-full ${
+              pathname === "/site-map" ? "text-accent" : ""
+            }`}
+          >
+            <Search size={18} strokeWidth={1.6} />
+          </Link>
+
           {/* Mobile menu toggle */}
           <button
             type="button"
@@ -136,7 +138,7 @@ export function AppNav({
       {/* Mobile menu panel */}
       {menuOpen && (
         <div className="border-t border-hairline lg:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col px-6 py-2">
+          <nav className="mx-auto flex max-w-4xl flex-col px-6 py-2">
             {NAV_LINKS.map(({ href, label, icon: Icon, color }) => (
               <Link
                 key={href}
