@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { NAV_LINKS } from "../nav-links";
+import { NAV_LINKS, SITE_MAP_LINK } from "../nav-links";
 
 export default function DashboardPage() {
   return (
     <div className="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 sm:gap-6">
-      {NAV_LINKS.map(({ href, label, icon: Icon, color }) => (
+      {[...NAV_LINKS, SITE_MAP_LINK].map(({ href, label, icon: Icon, color }) => (
         <Link
           key={href}
           href={href}
