@@ -1,7 +1,6 @@
 import {
   CalendarClock,
   Landmark,
-  Map as MapIcon,
   CreditCard,
   Receipt,
   Scale,
@@ -43,11 +42,3 @@ export const NAV_LINKS: NavLink[] = [
   { href: "/debts", label: "Debts", icon: CreditCard, color: APPLE_COLORS.red },
   { href: "/networth", label: "Net Worth", icon: TrendingUp, color: APPLE_COLORS.green },
 ];
-
-// Shown as a home tile but kept out of the top nav bar.
-export const SITE_MAP_LINK: NavLink = {
-  href: "/site-map",
-  label: "Site Map",
-  icon: MapIcon,
-  color: APPLE_COLORS.graphite,
-};
