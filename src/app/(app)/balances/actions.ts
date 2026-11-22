@@ -77,5 +77,6 @@ export async function saveDailyBalances(
   }
 
   revalidatePath("/balances");
+  revalidatePath("/networth");
   return { saved: (data ?? []) as SavedSnapshot[] };
 }

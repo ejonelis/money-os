@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireHouseholdId } from "@/lib/household";
+import type { HistoryRow } from "@/lib/parse-history";
 
 const accountSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
@@ -145,4 +146,37 @@ export async function archiveAccount(id: string) {
   const supabase = await createClient();
   await supabase.from("accounts").update({ archived: true }).eq("id", id);
   revalidatePath("/networth");
+}
+
+const historySchema = z
+  .array(
+    z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      total: z.number().finite(),
+    }),
+  )
+  .min(1, "Nothing to import.")
+  .max(5000, "Too many rows — import in smaller batches.");
+
+// Saves imported net-worth totals; re-importing a date overwrites it.
+export async function importNetWorthHistory(
+  rows: HistoryRow[],
+): Promise<{ error?: string; count?: number }> {
+  const parsed = historySchema.safeParse(rows);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  const householdId = await requireHouseholdId();
+  const supabase = await createClient();
+  const { error } = await supabase.from("net_worth_history").upsert(
+    parsed.data.map((r) => ({
+      household_id: householdId,
+      as_of_date: r.date,
+      total: r.total,
+    })),
+    { onConflict: "household_id,as_of_date" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/networth");
+  return { count: parsed.data.length };
 }

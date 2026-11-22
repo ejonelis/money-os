@@ -28,8 +28,16 @@ export default async function NetWorthPage() {
 
   if (snapshotsError) throw new Error(snapshotsError.message);
 
+  // Imported totals; absent (null) until the migration has been run.
+  const { data: history } = await supabase
+    .from("net_worth_history")
+    .select("as_of_date, total")
+    .eq("household_id", householdId)
+    .order("as_of_date", { ascending: true });
+
   return (
     <NetWorthClient
+      initialHistory={(history ?? []) as Array<{ as_of_date: string; total: number }>}
       initialAccounts={accounts ?? []}
       initialSnapshots={snapshots ?? []}
     />
