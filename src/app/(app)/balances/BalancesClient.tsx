@@ -6,6 +6,12 @@ import {
   type SaveBalancesState,
   type SavedSnapshot,
 } from "./actions";
+import {
+  ChartRangeControls,
+  rangeStart,
+  type ChartRange,
+} from "@/components/BalanceChart";
+import { MultiLineChart, type Series } from "@/components/MultiLineChart";
 
 type Account = { id: string; name: string; is_liability: boolean };
 type Snapshot = SavedSnapshot;
@@ -38,6 +44,12 @@ function daysBetween(a: string, b: string) {
   );
 }
 
+// Apple system colours, cycled per account.
+const SERIES_COLORS = [
+  "#0a7aff", "#ff9500", "#2fb450", "#af52de", "#1fa3c4",
+  "#ff2d6f", "#5e5ce6", "#a2845e", "#00b5a0", "#e0a100",
+];
+
 type Row = {
   date: string;
   balances: Record<string, number | undefined>;
@@ -53,6 +65,9 @@ export function BalancesClient({
 }) {
   const [snapshots, setSnapshots] = useState(initialSnapshots);
   const [date, setDate] = useState(todayISO());
+  const [range, setRange] = useState<ChartRange>("3M");
+  const [fromDate, setFromDate] = useState("");
+  const [hidden, setHidden] = useState<Set<string>>(new Set(["__total"]));
 
   function mergeSaved(saved: Snapshot[]) {
     // Snapshots are append-only now — several can share a day (e.g. a 6am
@@ -118,6 +133,56 @@ export function BalancesClient({
     return row.total - rows[compareIdx].total;
   }
 
+  // One line per account (plus a Total), within the chosen date range.
+  // Each account's line starts at its first recorded balance, and is held
+  // flat to today so it reaches the right-hand edge.
+  const chartSeries = useMemo<Series[]>(() => {
+    if (rows.length === 0) return [];
+    const today = todayISO();
+    const from = rangeStart(range, fromDate, today);
+    const build = (
+      id: string,
+      name: string,
+      color: string,
+      value: (r: Row) => number | undefined,
+    ): Series | null => {
+      const full = rows
+        .map((r) => ({ date: r.date, value: value(r) }))
+        .filter((p): p is { date: string; value: number } => p.value !== undefined);
+      if (full.length === 0) return null;
+      if (full[full.length - 1].date < today) {
+        full.push({ date: today, value: full[full.length - 1].value });
+      }
+      const inRange = full.filter((p) => p.date >= from);
+      const before = [...full].reverse().find((p) => p.date < from);
+      const points =
+        from && before && inRange[0]?.date !== from
+          ? [{ date: from, value: before.value }, ...inRange]
+          : inRange;
+      return points.length > 0 ? { id, name, color, points } : null;
+    };
+    const lines = accounts
+      .filter((a) => !hidden.has(a.id))
+      .map((a) =>
+        build(a.id, a.name, SERIES_COLORS[accounts.indexOf(a) % SERIES_COLORS.length], (r) =>
+          r.balances[a.id],
+        ),
+      );
+    const total = hidden.has("__total")
+      ? null
+      : build("__total", "Total", "var(--foreground)", (r) => r.total);
+    return [...lines, total].filter((x): x is Series => x !== null);
+  }, [rows, accounts, hidden, range, fromDate]);
+
+  function toggleSeries(id: string) {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const latestTotal = rows.length > 0 ? rows[rows.length - 1].total : 0;
 
   return (
@@ -136,6 +201,50 @@ export function BalancesClient({
         lastKnown={lastKnown}
         onSaved={mergeSaved}
       />
+
+      <div className="space-y-3">
+        <MultiLineChart
+          series={chartSeries}
+          valueLabel="Balances over time"
+          controls={
+            <ChartRangeControls
+              range={range}
+              onRange={setRange}
+              fromDate={fromDate}
+              onFromDate={setFromDate}
+              today={todayISO()}
+            />
+          }
+        />
+        <div className="flex flex-wrap gap-2">
+          {[
+            ...accounts.map((a, i) => ({
+              id: a.id,
+              name: a.name,
+              color: SERIES_COLORS[i % SERIES_COLORS.length],
+            })),
+            { id: "__total", name: "Total", color: "var(--foreground)" },
+          ].map((c) => {
+            const on = !hidden.has(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleSeries(c.id)}
+                aria-pressed={on}
+                className={`flex items-center gap-1.5 border px-3 py-1 text-xs transition-colors ${
+                  on ? "border-hairline" : "border-hairline text-muted opacity-60"
+                }`}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: on ? c.color : "transparent", boxShadow: `inset 0 0 0 1px ${c.color}` }}
+                />
+                {c.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="overflow-x-auto rounded-lg border border-hairline shadow-card">
         <table className="w-full text-sm">
