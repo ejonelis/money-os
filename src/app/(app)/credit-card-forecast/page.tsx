@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireHouseholdId } from "@/lib/household";
 import { materializePlannedTransactions } from "../bills-forecast/materialize";
 import { ForecastClient } from "../bills-forecast/ForecastClient";
+import { findBillsAccount, findCardAccount } from "@/lib/accounts";
 import type { SavedTransaction } from "../bills-forecast/actions";
 
 export default async function CreditCardForecastPage() {
@@ -17,9 +18,7 @@ export default async function CreditCardForecastPage() {
 
   if (accountsError) throw new Error(accountsError.message);
 
-  const card =
-    accounts?.find((a) => a.type === "credit_card") ??
-    accounts?.find((a) => /^cc$|credit|card/i.test(a.name.trim()));
+  const card = findCardAccount(accounts);
 
   if (!card) {
     return (
@@ -46,6 +45,7 @@ export default async function CreditCardForecastPage() {
   const [
     { data: ownTransactions, error: txError },
     { data: paymentTransactions },
+    { data: linkedOneOffs },
     { data: snapshot },
     { data: categories },
   ] = await Promise.all([
@@ -63,6 +63,14 @@ export default async function CreditCardForecastPage() {
           .eq("status", "planned")
           .order("date", { ascending: true })
       : Promise.resolve({ data: [] as SavedTransaction[] }),
+    // One-off payments entered on another account (e.g. Bills) that point
+    // at the card.
+    supabase
+      .from("transactions")
+      .select("id, account_id, date, amount, status, merchant, recurring_rule_id")
+      .eq("transfer_to_account_id", card.id)
+      .eq("status", "planned")
+      .order("date", { ascending: true }),
     supabase
       .from("balance_snapshots")
       .select("balance, as_of_date")
@@ -80,7 +88,10 @@ export default async function CreditCardForecastPage() {
 
   if (txError) throw new Error(txError.message);
 
-  const payments: SavedTransaction[] = (paymentTransactions ?? []).map((t) => ({
+  const payments: SavedTransaction[] = [
+    ...(paymentTransactions ?? []),
+    ...(linkedOneOffs ?? []),
+  ].map((t) => ({
     ...t,
     id: `payment-${t.id}`,
     account_id: card.id,
@@ -96,9 +107,7 @@ export default async function CreditCardForecastPage() {
       variant="card"
       title="CC Forecast"
       creditLimit={card.credit_limit}
-      paymentSourceAccountId={
-        accounts?.find((a) => a.id !== card.id && /bills/i.test(a.name))?.id ?? null
-      }
+      paymentSourceAccountId={findBillsAccount(accounts, card.id)?.id ?? null}
       selectedAccountId={card.id}
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}

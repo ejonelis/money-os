@@ -70,14 +70,13 @@ export async function addTransaction(
       return { error: "Choose how often this repeats." };
     }
     const householdId = await requireHouseholdId();
-    const ruleKind = formData.get("rule_kind") === "income" ? "income" : "expense";
     const { data: rule, error: ruleError } = await supabase
       .from("recurring_rules")
       .insert({
         household_id: householdId,
         account_id: formData.get("rule_account_id") || parsed.data.account_id,
         description: parsed.data.description,
-        kind: ruleKind,
+        kind: parsed.data.kind,
         frequency: repeat,
         amount: parsed.data.amount,
         next_due_date: parsed.data.date,
@@ -97,14 +96,20 @@ export async function addTransaction(
   const signedAmount =
     parsed.data.kind === "income" ? parsed.data.amount : -parsed.data.amount;
 
+  // A one-off that pays into another account (e.g. an extra card payment
+  // entered on Bills): it lives on the paying account and the receiving
+  // account's forecast reads it from there.
+  const transferTo = (formData.get("transfer_to_account_id") as string) || null;
+
   const { data, error } = await supabase
     .from("transactions")
     .insert({
-      account_id: parsed.data.account_id,
+      account_id: formData.get("rule_account_id") || parsed.data.account_id,
       date: parsed.data.date,
       amount: signedAmount,
       merchant: parsed.data.description,
       status: parsed.data.on_hold ? "on_hold" : "planned",
+      ...(transferTo ? { transfer_to_account_id: transferTo } : {}),
     })
     .select(TX_COLUMNS)
     .single();
@@ -114,6 +119,9 @@ export async function addTransaction(
   }
 
   revalidateForecasts();
+  // The entry may belong to the other account's page, so refresh instead
+  // of adding it to this page's list.
+  if (transferTo) return { ruleUpdated: data.id };
   return { transaction: data as SavedTransaction };
 }
 

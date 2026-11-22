@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireHouseholdId } from "@/lib/household";
+import { findBillsAccount, findCardAccount } from "@/lib/accounts";
 import { materializePlannedTransactions } from "./materialize";
 import { ForecastClient } from "./ForecastClient";
 
@@ -9,7 +10,7 @@ export default async function ForecastPage() {
 
   const { data: accounts, error: accountsError } = await supabase
     .from("accounts")
-    .select("id, name")
+    .select("id, name, type")
     .eq("household_id", householdId)
     .eq("archived", false)
     .order("name", { ascending: true });
@@ -23,9 +24,8 @@ export default async function ForecastPage() {
     );
   }
 
-  const selectedAccount =
-    accounts.find((a) => a.name.toLowerCase().includes("bills")) ??
-    accounts[0];
+  const selectedAccount = findBillsAccount(accounts) ?? accounts[0];
+  const cardAccount = findCardAccount(accounts);
 
   await materializePlannedTransactions(supabase, selectedAccount.id);
 
@@ -58,6 +58,9 @@ export default async function ForecastPage() {
 
   return (
     <ForecastClient
+      paymentTargetAccountId={
+        cardAccount && cardAccount.id !== selectedAccount.id ? cardAccount.id : null
+      }
       selectedAccountId={selectedAccount.id}
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}

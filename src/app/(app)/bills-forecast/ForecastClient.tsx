@@ -83,6 +83,7 @@ export function ForecastClient({
   title = "Bills Forecast",
   creditLimit = null,
   paymentSourceAccountId = null,
+  paymentTargetAccountId = null,
   selectedAccountId,
   startingBalance,
   startingBalanceDate,
@@ -93,6 +94,7 @@ export function ForecastClient({
   title?: string;
   creditLimit?: number | null;
   paymentSourceAccountId?: string | null;
+  paymentTargetAccountId?: string | null;
   selectedAccountId: string;
   startingBalance: number;
   startingBalanceDate: string | null;
@@ -686,6 +688,7 @@ export function ForecastClient({
           currentBalance={currentBalance}
           isCard={isCard}
           paymentSourceAccountId={paymentSourceAccountId}
+          paymentTargetAccountId={paymentTargetAccountId}
           onClose={() => setEditingTx(null)}
           onBalanceEntered={(balance) => {
             setEditingTx(null);
@@ -1018,6 +1021,7 @@ function TransactionFormModal({
   currentBalance,
   isCard,
   paymentSourceAccountId,
+  paymentTargetAccountId,
   onClose,
   onBalanceEntered,
   onSaved,
@@ -1028,6 +1032,7 @@ function TransactionFormModal({
   currentBalance: number;
   isCard: boolean;
   paymentSourceAccountId: string | null;
+  paymentTargetAccountId: string | null;
   onClose: () => void;
   onBalanceEntered: (balance: number) => void;
   onSaved: (tx: SavedTransaction) => void;
@@ -1036,16 +1041,25 @@ function TransactionFormModal({
   const isNew = !tx;
   const isRecurring = !!tx?.recurring_rule_id;
   const [scope, setScope] = useState<"occurrence" | "rule">("occurrence");
-  const [kind, setKind] = useState<"expense" | "income" | "balance">(
+  const [kind, setKind] = useState<"expense" | "income" | "balance" | "card_payment">(
     tx && tx.amount >= 0 ? "income" : "expense",
   );
   const isBalance = kind === "balance";
   const [repeat, setRepeat] = useState<"none" | Frequency>("none");
   const repeating = repeat !== "none";
-  // On the card page a repeating Payment is paid from the Bills account
-  // into the card; anything else repeats on this account.
-  const cardPayment = isCard && kind === "income";
-  const noPaymentSource = cardPayment && !paymentSourceAccountId;
+  const [paidFromBills, setPaidFromBills] = useState(true);
+  // A "linked" entry is paid from one account into another: on the card
+  // page a Payment comes out of Bills (unless unticked); on Bills a Card
+  // payment goes into the card. Either way it's stored on the paying
+  // account and the card forecast reads it from there.
+  const linkedFromBills =
+    isNew && isCard && kind === "income" && paidFromBills && !!paymentSourceAccountId;
+  const linkedToCard =
+    isNew && !isCard && kind === "card_payment" && !!paymentTargetAccountId;
+  const linked = linkedFromBills || linkedToCard;
+  const sourceAccountId = linkedFromBills ? paymentSourceAccountId : accountId;
+  const targetAccountId = linkedFromBills ? accountId : paymentTargetAccountId;
+  const effectiveKind = linked ? "expense" : kind === "card_payment" ? "expense" : kind;
   const action = isNew ? addTransaction : updateTransaction.bind(null, tx!.id);
   const [state, formAction, pending] = useActionState<TxFormState, FormData>(
     action,
@@ -1077,15 +1091,11 @@ function TransactionFormModal({
           className="space-y-3"
         >
           <input type="hidden" name="account_id" value={accountId} />
-          {repeating && (
+          <input type="hidden" name="kind" value={effectiveKind} />
+          {linked && (
             <>
-              <input type="hidden" name="rule_kind" value={cardPayment ? "expense" : kind} />
-              {cardPayment && paymentSourceAccountId && (
-                <>
-                  <input type="hidden" name="rule_account_id" value={paymentSourceAccountId} />
-                  <input type="hidden" name="transfer_to_account_id" value={accountId} />
-                </>
-              )}
+              <input type="hidden" name="rule_account_id" value={sourceAccountId ?? ""} />
+              <input type="hidden" name="transfer_to_account_id" value={targetAccountId ?? ""} />
             </>
           )}
           {isRecurring && (
@@ -1121,16 +1131,42 @@ function TransactionFormModal({
           <div>
             <label className="mb-1 block text-xs text-muted">Type</label>
             <select
-              name="kind"
               value={kind}
               onChange={(e) => setKind(e.target.value as typeof kind)}
               className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             >
               <option value="expense">{isCard ? "Purchase" : "Expense"}</option>
               <option value="income">{isCard ? "Payment" : "Income"}</option>
+              {isNew && !isCard && paymentTargetAccountId && (
+                <option value="card_payment">Credit card payment</option>
+              )}
               {isNew && <option value="balance">Today&rsquo;s balance</option>}
             </select>
           </div>
+          {isNew && isCard && kind === "income" && (
+            <div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={paidFromBills && !!paymentSourceAccountId}
+                  disabled={!paymentSourceAccountId}
+                  onChange={(e) => setPaidFromBills(e.target.checked)}
+                  className="h-4 w-4 accent-accent"
+                />
+                Paid from Bills account
+              </label>
+              <p className="mt-1 text-xs text-muted">
+                {paymentSourceAccountId
+                  ? "Shows on both forecasts, so the two stay linked."
+                  : "No account with “bills” in its name was found."}
+              </p>
+            </div>
+          )}
+          {linkedToCard && (
+            <p className="-mt-1 text-xs text-muted">
+              Comes out of this account and shows on CC Forecast as a payment.
+            </p>
+          )}
           {isBalance ? (
             <div>
               <label className="mb-1 block text-xs text-muted">
@@ -1163,9 +1199,8 @@ function TransactionFormModal({
                   <label className="mb-1 block text-xs text-muted">Repeats</label>
                   <select
                     name="repeat"
-                    value={noPaymentSource ? "none" : repeat}
+                    value={repeat}
                     onChange={(e) => setRepeat(e.target.value as typeof repeat)}
-                    disabled={noPaymentSource}
                     className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
                   >
                     <option value="none">Doesn&rsquo;t repeat</option>
@@ -1175,16 +1210,6 @@ function TransactionFormModal({
                       </option>
                     ))}
                   </select>
-                  {cardPayment && repeating && !noPaymentSource && (
-                    <p className="mt-1 text-xs text-muted">
-                      Paid from your Bills account and shown here as a payment.
-                    </p>
-                  )}
-                  {noPaymentSource && (
-                    <p className="mt-1 text-xs text-muted">
-                      Repeating card payments need an account with &ldquo;bills&rdquo; in its name.
-                    </p>
-                  )}
                 </div>
               )}
               <div>
