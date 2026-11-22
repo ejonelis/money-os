@@ -9,6 +9,13 @@ import {
   type SavedAccount,
   type SavedValue,
 } from "./actions";
+import {
+  BalanceChart,
+  ChartRangeControls,
+  rangeStart,
+  type ChartPoint,
+  type ChartRange,
+} from "@/components/BalanceChart";
 
 type Account = SavedAccount;
 type Snapshot = SavedValue;
@@ -57,6 +64,8 @@ export function NetWorthClient({
     null,
   );
   const [, startTransition] = useTransition();
+  const [range, setRange] = useState<ChartRange>("1Y");
+  const [fromDate, setFromDate] = useState("");
 
   const latest = useMemo(() => {
     const map = new Map<string, Snapshot>();
@@ -94,6 +103,39 @@ export function NetWorthClient({
     .filter((g) => g.isLiability)
     .reduce((sum, g) => sum + g.total, 0);
   const netWorth = totalAssets + totalLiabilities;
+
+  // Net worth over time: on each date a balance was recorded, sum every
+  // account's most recent balance up to then (liabilities are negative).
+  const chartPoints = useMemo<ChartPoint[]>(() => {
+    const today = todayISO();
+    const sorted = [...snapshots].sort((a, b) => {
+      if (a.as_of_date !== b.as_of_date) return a.as_of_date < b.as_of_date ? -1 : 1;
+      return a.created_at < b.created_at ? -1 : 1;
+    });
+    const balances = new Map<string, number>();
+    const series: ChartPoint[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      balances.set(sorted[i].account_id, sorted[i].balance);
+      const isLastOfDate =
+        i === sorted.length - 1 || sorted[i + 1].as_of_date !== sorted[i].as_of_date;
+      if (!isLastOfDate) continue;
+      let total = 0;
+      for (const v of balances.values()) total += v;
+      series.push({ date: sorted[i].as_of_date, value: total, label: "Recorded" });
+    }
+    if (series.length === 0) return [];
+    const last = series[series.length - 1];
+    if (last.date < today) series.push({ date: today, value: last.value, label: "Today" });
+
+    const from = rangeStart(range, fromDate, today);
+    if (!from) return series;
+    const inRange = series.filter((p) => p.date >= from);
+    // Anchor the line at the start of the window with the value then.
+    const before = [...series].reverse().find((p) => p.date < from);
+    return before && inRange[0]?.date !== from
+      ? [{ date: from, value: before.value, label: "Recorded" }, ...inRange]
+      : inRange;
+  }, [snapshots, range, fromDate]);
 
   function upsertLocal(account: Account, snapshot: Snapshot) {
     setAccounts((prev) => {
@@ -146,6 +188,23 @@ export function NetWorthClient({
           </div>
         </div>
       </div>
+
+      <BalanceChart
+        points={chartPoints}
+        valueLabel="Net worth over time"
+        controls={
+          <ChartRangeControls
+            range={range}
+            onRange={setRange}
+            fromDate={fromDate}
+            onFromDate={setFromDate}
+            today={todayISO()}
+          />
+        }
+        reference={
+          chartPoints.some((p) => p.value < 0) ? { value: 0, label: "Zero" } : undefined
+        }
+      />
 
       {groups.length === 0 && (
         <p className="text-sm text-muted">

@@ -26,7 +26,13 @@ import { reconcileBalance, type LeftoverEntry } from "./reconcile";
 import { FREQUENCIES, FREQUENCY_LABELS, type Frequency } from "@/lib/recurrence";
 import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 import { ChoiceModal } from "@/components/ChoiceModal";
-import { BalanceChart, type ChartPoint } from "@/components/BalanceChart";
+import {
+  BalanceChart,
+  ChartRangeControls,
+  rangeStart,
+  type ChartPoint,
+  type ChartRange,
+} from "@/components/BalanceChart";
 
 const currency = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -117,7 +123,7 @@ export function ForecastClient({
     | null
   >(null);
   const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
-  const [range, setRange] = useState<"1M" | "3M" | "6M" | "1Y" | "All">("3M");
+  const [range, setRange] = useState<ChartRange>("3M");
   const [fromDate, setFromDate] = useState("");
   const [editingLimit, setEditingLimit] = useState(false);
   const [limitInput, setLimitInput] = useState("");
@@ -189,14 +195,7 @@ export function ForecastClient({
   // Recorded balances give the history; planned entries the forecast.
   const chartPoints = useMemo<ChartPoint[]>(() => {
     const val = (b: number) => (isCard ? -b : b);
-    const days = { "1M": 30, "3M": 90, "6M": 182, "1Y": 365, All: null }[range];
-    let from = "";
-    if (fromDate) from = fromDate;
-    else if (days !== null) {
-      const d = new Date(`${today}T00:00:00Z`);
-      d.setUTCDate(d.getUTCDate() - days);
-      from = d.toISOString().slice(0, 10);
-    }
+    const from = rangeStart(range, fromDate, today);
     const history: ChartPoint[] = balanceHistory
       .filter((h) => h.as_of_date < today && h.as_of_date >= from)
       .map((h) => ({ date: h.as_of_date, value: val(h.balance), label: "Recorded" }));
@@ -670,36 +669,13 @@ export function ForecastClient({
 
       <BalanceChart
         controls={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-full border border-hairline p-1">
-              {(["1M", "3M", "6M", "1Y", "All"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => {
-                    setRange(r);
-                    setFromDate("");
-                  }}
-                  className={`rounded px-2.5 py-0.5 text-xs transition-colors ${
-                    !fromDate && range === r
-                      ? "bg-accent text-white"
-                      : "text-muted hover:text-accent"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              From
-              <input
-                type="date"
-                value={fromDate}
-                max={today}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="rounded-md border border-hairline bg-surface px-2 py-1 text-xs"
-              />
-            </label>
-          </div>
+          <ChartRangeControls
+            range={range}
+            onRange={setRange}
+            fromDate={fromDate}
+            onFromDate={setFromDate}
+            today={today}
+          />
         }
         points={chartPoints}
         valueLabel={isCard ? "Owed over time" : "Balance over time"}

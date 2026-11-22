@@ -55,7 +55,21 @@ export function BalanceChart({
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
-  if (points.length < 2) return null;
+  if (points.length < 2) {
+    // Keep the range controls so a too-narrow range can be widened again.
+    if (!controls) return null;
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-medium text-muted">{valueLabel}</h2>
+          {controls}
+        </div>
+        <p className="rounded-lg border border-hairline px-4 py-6 text-center text-sm text-foreground/40 shadow-card">
+          Not enough data in this range.
+        </p>
+      </div>
+    );
+  }
 
   const xs = points.map((p) => toMs(p.date));
   const xMin = xs[0];
@@ -243,6 +257,74 @@ export function BalanceChart({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+export type ChartRange = "1M" | "3M" | "6M" | "1Y" | "All";
+
+const RANGE_DAYS: Record<ChartRange, number | null> = {
+  "1M": 30,
+  "3M": 90,
+  "6M": 182,
+  "1Y": 365,
+  All: null,
+};
+
+// The ISO date a range starts from (today minus N days), or "" for All.
+// A picked "From" date wins over the preset.
+export function rangeStart(range: ChartRange, fromDate: string, today: string) {
+  if (fromDate) return fromDate;
+  const days = RANGE_DAYS[range];
+  if (days === null) return "";
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function ChartRangeControls({
+  range,
+  onRange,
+  fromDate,
+  onFromDate,
+  today,
+}: {
+  range: ChartRange;
+  onRange: (r: ChartRange) => void;
+  fromDate: string;
+  onFromDate: (d: string) => void;
+  today: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1 rounded-full border border-hairline p-1">
+        {(Object.keys(RANGE_DAYS) as ChartRange[]).map((r) => (
+          <button
+            key={r}
+            onClick={() => {
+              onRange(r);
+              onFromDate("");
+            }}
+            className={`rounded px-2.5 py-0.5 text-xs transition-colors ${
+              !fromDate && range === r
+                ? "bg-accent text-white"
+                : "text-muted hover:text-accent"
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-1.5 text-xs text-muted">
+        From
+        <input
+          type="date"
+          value={fromDate}
+          max={today}
+          onChange={(e) => onFromDate(e.target.value)}
+          className="rounded-md border border-hairline bg-surface px-2 py-1 text-xs"
+        />
+      </label>
     </div>
   );
 }
