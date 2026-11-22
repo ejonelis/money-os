@@ -282,7 +282,7 @@ export function ForecastClient({
           </div>
         ) : (
           <div className="min-w-0 flex-1 truncate rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 sm:px-4 sm:text-sm dark:text-emerald-400">
-            <span className="sm:hidden">Clear for 90d</span>
+            <span className="sm:hidden">Clear for 90 days</span>
             <span className="hidden sm:inline">✅ Clear for the next 90 days</span>
           </div>
         )}
