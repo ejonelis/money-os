@@ -40,13 +40,13 @@ export const NAV_LINKS: NavLink[] = [
   { href: "/bills-forecast", label: "Bills Forecast", icon: CalendarClock, color: APPLE_COLORS.blue },
   { href: "/credit-card-forecast", label: "CC Forecast", icon: CreditCard, color: APPLE_COLORS.purple },
   { href: "/bills", label: "Monthly Bills", icon: Receipt, color: APPLE_COLORS.orange },
-  { href: "/accounts", label: "Accounts", icon: Landmark, color: APPLE_COLORS.teal },
   { href: "/debts", label: "Debts", icon: TrendingDown, color: APPLE_COLORS.red },
   { href: "/networth", label: "Net Worth", icon: TrendingUp, color: APPLE_COLORS.green },
 ];
 
 // Pages that aren't in the top menu; they live on the Other page.
 export const OTHER_LINKS: NavLink[] = [
+  { href: "/accounts", label: "Accounts", icon: Landmark, color: APPLE_COLORS.teal },
   { href: "/balances", label: "Balances", icon: Scale, color: APPLE_COLORS.indigo },
 ]
 

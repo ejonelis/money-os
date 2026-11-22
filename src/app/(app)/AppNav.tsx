@@ -64,7 +64,7 @@ export function AppNav({
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-surface ${
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-surface ${
                     active ? "bg-surface font-medium" : "text-foreground/70"
                   }`}
                 >
