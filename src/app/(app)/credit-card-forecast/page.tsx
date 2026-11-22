@@ -48,6 +48,7 @@ export default async function CreditCardForecastPage() {
     { data: linkedOneOffs },
     { data: snapshot },
     { data: categories },
+    { data: history },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -84,6 +85,13 @@ export default async function CreditCardForecastPage() {
       .select("name")
       .eq("household_id", householdId)
       .order("name", { ascending: true }),
+
+    supabase
+      .from("balance_snapshots")
+      .select("balance, as_of_date")
+      .eq("account_id", card.id)
+      .order("as_of_date", { ascending: true })
+      .order("created_at", { ascending: true }),
   ]);
 
   if (txError) throw new Error(txError.message);
@@ -112,6 +120,7 @@ export default async function CreditCardForecastPage() {
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}
       initialTransactions={[...(ownTransactions ?? []), ...payments]}
+      balanceHistory={history ?? []}
       existingCategories={Array.from(new Set((categories ?? []).map((c) => c.name)))}
     />
   );

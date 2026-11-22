@@ -85,6 +85,7 @@ export function ForecastClient({
   creditLimit = null,
   paymentSourceAccountId = null,
   paymentTargetAccountId = null,
+  balanceHistory = [],
   selectedAccountId,
   startingBalance,
   startingBalanceDate,
@@ -96,6 +97,7 @@ export function ForecastClient({
   creditLimit?: number | null;
   paymentSourceAccountId?: string | null;
   paymentTargetAccountId?: string | null;
+  balanceHistory?: Array<{ as_of_date: string; balance: number }>;
   selectedAccountId: string;
   startingBalance: number;
   startingBalanceDate: string | null;
@@ -115,6 +117,8 @@ export function ForecastClient({
     | null
   >(null);
   const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
+  const [range, setRange] = useState<"1M" | "3M" | "6M" | "1Y" | "All">("3M");
+  const [fromDate, setFromDate] = useState("");
   const [editingLimit, setEditingLimit] = useState(false);
   const [limitInput, setLimitInput] = useState("");
   const [rowActionTx, setRowActionTx] = useState<SavedTransaction | null>(null);
@@ -182,13 +186,31 @@ export function ForecastClient({
   }, [isCard, rows, currentBalance, endingBalance, creditLimit]);
 
   // Card: chart what's owed (so repaying brings the line down to zero).
+  // Recorded balances give the history; planned entries the forecast.
   const chartPoints = useMemo<ChartPoint[]>(() => {
     const val = (b: number) => (isCard ? -b : b);
+    const days = { "1M": 30, "3M": 90, "6M": 182, "1Y": 365, All: null }[range];
+    let from = "";
+    if (fromDate) from = fromDate;
+    else if (days !== null) {
+      const d = new Date(`${today}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - days);
+      from = d.toISOString().slice(0, 10);
+    }
+    const history: ChartPoint[] = balanceHistory
+      .filter((h) => h.as_of_date < today && h.as_of_date >= from)
+      .map((h) => ({ date: h.as_of_date, value: val(h.balance), label: "Recorded" }));
     return [
+      ...history,
       { date: today, value: val(currentBalance), label: "Today" },
-      ...rows.map((r) => ({ date: r.date, value: val(r.balance), label: r.merchant })),
+      ...rows.map((r) => ({
+        date: r.date,
+        value: val(r.balance),
+        label: r.merchant,
+        forecast: true,
+      })),
     ];
-  }, [isCard, rows, currentBalance, today]);
+  }, [isCard, rows, currentBalance, today, balanceHistory, range, fromDate]);
 
   // Mobile card view: same rows, grouped into consecutive same-day runs so
   // the date only needs to appear once per day instead of on every row.
@@ -647,6 +669,38 @@ export function ForecastClient({
       )}
 
       <BalanceChart
+        controls={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full border border-hairline p-1">
+              {(["1M", "3M", "6M", "1Y", "All"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    setRange(r);
+                    setFromDate("");
+                  }}
+                  className={`rounded px-2.5 py-0.5 text-xs transition-colors ${
+                    !fromDate && range === r
+                      ? "bg-accent text-white"
+                      : "text-muted hover:text-accent"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1.5 text-xs text-muted">
+              From
+              <input
+                type="date"
+                value={fromDate}
+                max={today}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-md border border-hairline bg-surface px-2 py-1 text-xs"
+              />
+            </label>
+          </div>
+        }
         points={chartPoints}
         valueLabel={isCard ? "Owed over time" : "Balance over time"}
         reference={

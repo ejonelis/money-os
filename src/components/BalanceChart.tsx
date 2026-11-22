@@ -2,7 +2,13 @@
 
 import { useRef, useState } from "react";
 
-export type ChartPoint = { date: string; value: number; label?: string | null };
+export type ChartPoint = {
+  date: string;
+  value: number;
+  label?: string | null;
+  // Planned entries after today; everything before is recorded history.
+  forecast?: boolean;
+};
 
 const W = 800;
 const H = 260;
@@ -31,16 +37,20 @@ function fmtDate(ms: number) {
   });
 }
 
-// Step line of a balance over time: the balance holds until the next
-// entry changes it. `reference` draws a dashed line (zero, or a credit limit).
+// Balance over time. Recorded history is joined with straight lines (they
+// are point-in-time readings); the forecast is a dashed step line, since a
+// balance holds until the next entry changes it. `reference` draws a dashed
+// line (zero, or a credit limit).
 export function BalanceChart({
   points,
   reference,
   valueLabel,
+  controls,
 }: {
   points: ChartPoint[];
   reference?: { value: number; label: string };
   valueLabel: string;
+  controls?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -66,10 +76,20 @@ export function BalanceChart({
   const sy = (v: number) =>
     PAD.top + (1 - (v - yMin) / (yMax - yMin)) * (H - PAD.top - PAD.bottom);
 
-  let path = `M ${sx(xs[0])} ${sy(values[0])}`;
-  for (let i = 1; i < points.length; i++) {
-    path += ` L ${sx(xs[i])} ${sy(values[i - 1])} L ${sx(xs[i])} ${sy(values[i])}`;
+  // Split at the first forecast point: history is linear, forecast steps.
+  let split = points.findIndex((p) => p.forecast);
+  if (split === -1) split = points.length;
+  const lastHistory = Math.max(0, split - 1);
+  let historyPath = "";
+  for (let i = 0; i <= lastHistory; i++) {
+    historyPath += `${i === 0 ? "M" : " L"} ${sx(xs[i])} ${sy(values[i])}`;
   }
+  let forecastPath = `M ${sx(xs[lastHistory])} ${sy(values[lastHistory])}`;
+  for (let i = lastHistory + 1; i < points.length; i++) {
+    forecastPath += ` L ${sx(xs[i])} ${sy(values[i - 1])} L ${sx(xs[i])} ${sy(values[i])}`;
+  }
+  const todayX = sx(xs[lastHistory]);
+  const hasHistory = lastHistory > 0;
 
   const yTicks = Array.from({ length: 5 }, (_, i) => yMin + ((yMax - yMin) * i) / 4);
   const xTicks = Array.from({ length: 5 }, (_, i) => xMin + ((xMax - xMin) * i) / 4);
@@ -89,7 +109,10 @@ export function BalanceChart({
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-medium text-muted">{valueLabel}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium text-muted">{valueLabel}</h2>
+        {controls}
+      </div>
       <div
         ref={ref}
         className="relative rounded-lg border border-hairline p-3 shadow-card"
@@ -157,13 +180,39 @@ export function BalanceChart({
               </text>
             </g>
           )}
+          {hasHistory && (
+            <g>
+              <line
+                x1={todayX}
+                x2={todayX}
+                y1={PAD.top}
+                y2={H - PAD.bottom}
+                stroke="var(--muted)"
+                strokeWidth={1}
+                strokeDasharray="2 4"
+              />
+              <text x={todayX + 5} y={PAD.top + 10} fontSize={11} fill="var(--muted)">
+                Today
+              </text>
+            </g>
+          )}
           <path
-            d={path}
+            d={historyPath}
             fill="none"
             stroke="var(--accent)"
             strokeWidth={2}
             strokeLinejoin="round"
           />
+          {split < points.length && (
+            <path
+              d={forecastPath}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeDasharray="6 4"
+            />
+          )}
           {hp && (
             <g>
               <line
