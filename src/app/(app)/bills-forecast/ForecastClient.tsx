@@ -258,8 +258,8 @@ export function ForecastClient({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
+      <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1 rounded-full border border-hairline p-1 w-fit">
           <button
             onClick={() => setView("list")}
             className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
@@ -274,12 +274,16 @@ export function ForecastClient({
           </button>
         </div>
         {firstNegative ? (
-          <div className="min-w-[14rem] flex-1 rounded-md border border-red-500/30 bg-red-500/5 px-4 py-2 text-sm text-red-500">
-            ⚠️ Goes into the red on {formatDate(firstNegative.date)}
+          <div className="min-w-0 flex-1 truncate rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-500 sm:px-4 sm:text-sm">
+            <span className="sm:hidden">Red on {formatDateShort(firstNegative.date)}</span>
+            <span className="hidden sm:inline">
+              ⚠️ Goes into the red on {formatDate(firstNegative.date)}
+            </span>
           </div>
         ) : (
-          <div className="min-w-[14rem] flex-1 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400">
-            ✅ Clear for the next 90 days
+          <div className="min-w-0 flex-1 truncate rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 sm:px-4 sm:text-sm dark:text-emerald-400">
+            <span className="sm:hidden">Clear for 90d</span>
+            <span className="hidden sm:inline">✅ Clear for the next 90 days</span>
           </div>
         )}
       </div>
