@@ -19,7 +19,7 @@ export default async function CreditCardForecastPage() {
 
   const card =
     accounts?.find((a) => a.type === "credit_card") ??
-    accounts?.find((a) => /credit|card/i.test(a.name));
+    accounts?.find((a) => /^cc$|credit|card/i.test(a.name.trim()));
 
   if (!card) {
     return (
@@ -94,7 +94,7 @@ export default async function CreditCardForecastPage() {
   return (
     <ForecastClient
       variant="card"
-      title="Credit Card Forecast"
+      title="CC Forecast"
       creditLimit={card.credit_limit}
       selectedAccountId={card.id}
       startingBalance={snapshot?.balance ?? 0}

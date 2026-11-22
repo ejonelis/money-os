@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   Landmark,
+  LayoutGrid,
   CreditCard,
   Receipt,
   Scale,
@@ -37,10 +38,21 @@ export type NavLink = {
 // type makes both required, so a page can't be added without them.
 export const NAV_LINKS: NavLink[] = [
   { href: "/bills-forecast", label: "Bills Forecast", icon: CalendarClock, color: APPLE_COLORS.blue },
-  { href: "/credit-card-forecast", label: "Card Forecast", icon: CreditCard, color: APPLE_COLORS.purple },
+  { href: "/credit-card-forecast", label: "CC Forecast", icon: CreditCard, color: APPLE_COLORS.purple },
   { href: "/bills", label: "Monthly Bills", icon: Receipt, color: APPLE_COLORS.orange },
-  { href: "/balances", label: "Balances", icon: Scale, color: APPLE_COLORS.indigo },
   { href: "/accounts", label: "Accounts", icon: Landmark, color: APPLE_COLORS.teal },
   { href: "/debts", label: "Debts", icon: TrendingDown, color: APPLE_COLORS.red },
   { href: "/networth", label: "Net Worth", icon: TrendingUp, color: APPLE_COLORS.green },
 ];
+
+// Pages that aren't in the top menu; they live on the Other page.
+export const OTHER_LINKS: NavLink[] = [
+  { href: "/balances", label: "Balances", icon: Scale, color: APPLE_COLORS.indigo },
+]
+
+export const OTHER_LINK: NavLink = {
+  href: "/other",
+  label: "Other",
+  icon: LayoutGrid,
+  color: APPLE_COLORS.graphite,
+};

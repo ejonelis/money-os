@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Home, Menu, Search, User, X } from "lucide-react";
-import { NAV_LINKS } from "./nav-links";
+import { Home, LayoutGrid, Menu, Search, User, X } from "lucide-react";
+import { NAV_LINKS, OTHER_LINK, OTHER_LINKS } from "./nav-links";
 
 export function AppNav({
   email,
@@ -34,6 +34,10 @@ export function AppNav({
       document.removeEventListener("keydown", onKey);
     };
   }, [userOpen]);
+
+  const onOtherPage =
+    pathname === OTHER_LINK.href ||
+    OTHER_LINKS.some((l) => pathname === l.href || pathname.startsWith(`${l.href}/`));
 
   const iconBtn =
     "flex h-9 w-9 items-center justify-center text-foreground/60 transition-colors hover:bg-surface hover:text-accent";
@@ -107,6 +111,14 @@ export function AppNav({
               </div>
             )}
           </div>
+
+          <Link
+            href={OTHER_LINK.href}
+            aria-label="Other"
+            className={`${iconBtn} rounded-full ${onOtherPage ? "text-accent" : ""}`}
+          >
+            <LayoutGrid size={18} strokeWidth={1.6} />
+          </Link>
 
           <Link
             href="/site-map"

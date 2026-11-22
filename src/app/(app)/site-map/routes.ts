@@ -9,6 +9,7 @@ export type SiteRoute = {
 
 export const SITE_ROUTES: SiteRoute[] = [
   { area: "Home", path: "/", note: "Redirects to /dashboard" },
+  { area: "Home", path: "/other", note: "Pages not in the main menu", linkable: true },
   { area: "Home", path: "/dashboard", note: "Tile hub", linkable: true },
   { area: "Bills", path: "/bills-forecast", note: "Upcoming bills by day, balance reconciliation", linkable: true },
   { area: "Bills", path: "/credit-card-forecast", note: "Card balance, payments from Bills, payoff estimate", linkable: true },
