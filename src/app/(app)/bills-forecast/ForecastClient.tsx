@@ -275,15 +275,11 @@ export function ForecastClient({
         </div>
         {firstNegative ? (
           <div className="min-w-0 flex-1 truncate rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-500 sm:px-4 sm:text-sm">
-            <span className="sm:hidden">Red on {formatDateShort(firstNegative.date)}</span>
-            <span className="hidden sm:inline">
-              ⚠️ Goes into the red on {formatDate(firstNegative.date)}
-            </span>
+            ⚠️ Red on {formatDate(firstNegative.date)}
           </div>
         ) : (
           <div className="min-w-0 flex-1 truncate rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 sm:px-4 sm:text-sm dark:text-emerald-400">
-            <span className="sm:hidden">Clear for 90 days</span>
-            <span className="hidden sm:inline">✅ Clear for the next 90 days</span>
+            ✅ Clear for 90 days
           </div>
         )}
       </div>
