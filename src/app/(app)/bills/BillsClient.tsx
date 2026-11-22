@@ -565,6 +565,27 @@ function BillFormModal({
         <h2 className="mb-4 font-medium">{isNew ? "Add bill" : "Edit bill"}</h2>
         <form action={formAction} className="space-y-3">
           <div>
+            <label className="mb-1 block text-xs text-muted">Type</label>
+            <select
+              name="kind"
+              defaultValue={bill?.kind ?? "expense"}
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+            >
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted">Next due date</label>
+            <input
+              name="next_due_date"
+              type="date"
+              defaultValue={bill?.next_due_date}
+              required
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+            />
+          </div>
+          <div>
             <label className="mb-1 block text-xs text-muted">Description</label>
             <input
               name="description"
@@ -574,44 +595,16 @@ function BillFormModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted">Account</label>
-            <select
-              name="account_id"
-              defaultValue={bill?.account_id ?? accounts[0]?.id}
+            <label className="mb-1 block text-xs text-muted">Amount (€)</label>
+            <input
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              defaultValue={bill?.amount}
               required
               className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-muted">Type</label>
-              <select
-                name="kind"
-                defaultValue={bill?.kind ?? "expense"}
-                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted">Amount (€)</label>
-              <input
-                name="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                defaultValue={bill?.amount}
-                required
-                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-              />
-            </div>
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs text-muted">Frequency</label>
@@ -628,14 +621,19 @@ function BillFormModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted">Next due date</label>
-            <input
-              name="next_due_date"
-              type="date"
-              defaultValue={bill?.next_due_date}
+            <label className="mb-1 block text-xs text-muted">Account</label>
+            <select
+              name="account_id"
+              defaultValue={bill?.account_id ?? accounts[0]?.id}
               required
               className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-            />
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
           </div>
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
