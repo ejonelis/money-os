@@ -258,29 +258,30 @@ export function ForecastClient({
         </button>
       </div>
 
-      {firstNegative ? (
-        <div className="rounded-md border border-red-500/30 bg-red-500/5 px-4 py-2 text-sm text-red-500">
-          ⚠️ Goes into the red on {formatDate(firstNegative.date)}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
+          <button
+            onClick={() => setView("list")}
+            className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setView("calendar")}
+            className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
+          >
+            Calendar
+          </button>
         </div>
-      ) : (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400">
-          ✅ Clear for the next 90 days
-        </div>
-      )}
-
-      <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
-        <button
-          onClick={() => setView("list")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "list" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
-        >
-          List
-        </button>
-        <button
-          onClick={() => setView("calendar")}
-          className={`rounded px-3 py-1 text-sm transition-colors ${view === "calendar" ? "bg-accent text-white" : "text-muted hover:text-accent"}`}
-        >
-          Calendar
-        </button>
+        {firstNegative ? (
+          <div className="min-w-[14rem] flex-1 rounded-md border border-red-500/30 bg-red-500/5 px-4 py-2 text-sm text-red-500">
+            ⚠️ Goes into the red on {formatDate(firstNegative.date)}
+          </div>
+        ) : (
+          <div className="min-w-[14rem] flex-1 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+            ✅ Clear for the next 90 days
+          </div>
+        )}
       </div>
 
       {view === "list" ? (
