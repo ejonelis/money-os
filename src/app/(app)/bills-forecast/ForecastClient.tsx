@@ -7,7 +7,6 @@ import {
   useMemo,
   useState,
   useTransition,
-  type FormEvent,
 } from "react";
 import {
   addTransaction,
@@ -92,6 +91,7 @@ export function ForecastClient({
     | { step: "confirmBill"; recurringRuleId: string }
     | null
   >(null);
+  const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
   const [rowActionTx, setRowActionTx] = useState<SavedTransaction | null>(null);
   const [isPending, startTransition] = useTransition();
   const today = todayISO();
@@ -274,21 +274,6 @@ export function ForecastClient({
           ✅ Clear for the next 90 days
         </div>
       )}
-
-      <UpdateBalanceForm
-        accountId={selectedAccountId}
-        currentBalance={currentBalance}
-        candidates={planned.filter((t) => t.date <= today)}
-        existingCategories={existingCategories}
-        onSaved={(snapshot, clearedIds) => {
-          setCurrentBalance(snapshot.balance);
-          setCurrentBalanceDate(snapshot.as_of_date);
-          if (clearedIds.length > 0) {
-            setTransactions((prev) => prev.filter((t) => !clearedIds.includes(t.id)));
-          }
-          router.refresh();
-        }}
-      />
 
       <div className="flex items-center gap-1 rounded-full border border-hairline p-1 w-fit">
         <button
@@ -562,7 +547,12 @@ export function ForecastClient({
         <TransactionFormModal
           tx={editingTx === "new" ? null : editingTx}
           accountId={selectedAccountId}
+          currentBalance={currentBalance}
           onClose={() => setEditingTx(null)}
+          onBalanceEntered={(balance) => {
+            setEditingTx(null);
+            setPendingNewBalance(balance);
+          }}
           onSaved={(tx) => {
             upsertLocal(tx);
             setEditingTx(null);
@@ -570,6 +560,26 @@ export function ForecastClient({
           onRuleUpdated={(ruleId) => {
             setTransactions((prev) => prev.filter((t) => t.recurring_rule_id !== ruleId));
             setEditingTx(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {pendingNewBalance !== null && (
+        <ReconcileModal
+          accountId={selectedAccountId}
+          oldBalance={currentBalance}
+          newBalance={pendingNewBalance}
+          candidates={planned.filter((t) => t.date <= today)}
+          existingCategories={existingCategories}
+          onCancel={() => setPendingNewBalance(null)}
+          onDone={(snapshot, clearedIds) => {
+            setCurrentBalance(snapshot.balance);
+            setCurrentBalanceDate(snapshot.as_of_date);
+            if (clearedIds.length > 0) {
+              setTransactions((prev) => prev.filter((t) => !clearedIds.includes(t.id)));
+            }
+            setPendingNewBalance(null);
             router.refresh();
           }}
         />
@@ -645,98 +655,6 @@ export function ForecastClient({
         />
       )}
     </div>
-  );
-}
-
-function UpdateBalanceForm({
-  accountId,
-  currentBalance,
-  candidates,
-  existingCategories,
-  onSaved,
-}: {
-  accountId: string;
-  currentBalance: number;
-  candidates: SavedTransaction[];
-  existingCategories: string[];
-  onSaved: (
-    snapshot: { balance: number; as_of_date: string },
-    clearedIds: string[],
-  ) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [amountInput, setAmountInput] = useState(currentBalance.toString());
-  const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
-
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const entered = Number(amountInput);
-    if (Number.isNaN(entered)) return;
-    setPendingNewBalance(entered);
-  }
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="text-sm text-muted underline decoration-dotted transition-colors hover:text-accent"
-      >
-        Update today&rsquo;s balance
-      </button>
-    );
-  }
-
-  return (
-    <>
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-hairline shadow-card p-4"
-      >
-        <div>
-          <label className="mb-1 block text-xs text-muted">
-            Current balance (€)
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            value={amountInput}
-            onChange={(e) => setAmountInput(e.target.value)}
-            required
-            autoFocus
-            className="w-40 rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-          />
-        </div>
-        <button
-          type="submit"
-          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
-        >
-          Save
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="rounded-md border border-accent/30 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
-        >
-          Cancel
-        </button>
-      </form>
-
-      {pendingNewBalance !== null && (
-        <ReconcileModal
-          accountId={accountId}
-          oldBalance={currentBalance}
-          newBalance={pendingNewBalance}
-          candidates={candidates}
-          existingCategories={existingCategories}
-          onCancel={() => setPendingNewBalance(null)}
-          onDone={(snapshot, clearedIds) => {
-            onSaved(snapshot, clearedIds);
-            setPendingNewBalance(null);
-            setOpen(false);
-          }}
-        />
-      )}
-    </>
   );
 }
 
@@ -959,19 +877,27 @@ function ReconcileModal({
 function TransactionFormModal({
   tx,
   accountId,
+  currentBalance,
   onClose,
+  onBalanceEntered,
   onSaved,
   onRuleUpdated,
 }: {
   tx: SavedTransaction | null;
   accountId: string;
+  currentBalance: number;
   onClose: () => void;
+  onBalanceEntered: (balance: number) => void;
   onSaved: (tx: SavedTransaction) => void;
   onRuleUpdated: (recurringRuleId: string) => void;
 }) {
   const isNew = !tx;
   const isRecurring = !!tx?.recurring_rule_id;
   const [scope, setScope] = useState<"occurrence" | "rule">("occurrence");
+  const [kind, setKind] = useState<"expense" | "income" | "balance">(
+    tx && tx.amount >= 0 ? "income" : "expense",
+  );
+  const isBalance = kind === "balance";
   const action = isNew ? addTransaction : updateTransaction.bind(null, tx!.id);
   const [state, formAction, pending] = useActionState<TxFormState, FormData>(
     action,
@@ -988,7 +914,20 @@ function TransactionFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-[20px] border border-hairline bg-background p-5 shadow-xl">
         <h2 className="mb-4 font-medium">{isNew ? "Add entry" : "Edit entry"}</h2>
-        <form action={formAction} className="space-y-3">
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            if (!isBalance) return;
+            // "Today's balance" isn't a transaction: hand it to the
+            // reconcile flow instead of saving an entry.
+            e.preventDefault();
+            const entered = Number(
+              new FormData(e.currentTarget).get("balance_amount"),
+            );
+            if (!Number.isNaN(entered)) onBalanceEntered(entered);
+          }}
+          className="space-y-3"
+        >
           <input type="hidden" name="account_id" value={accountId} />
           {isRecurring && (
             <>
@@ -1021,58 +960,77 @@ function TransactionFormModal({
             </>
           )}
           <div>
-            <label className="mb-1 block text-xs text-muted">Description</label>
-            <input
-              name="description"
-              defaultValue={tx?.merchant ?? ""}
-              required
+            <label className="mb-1 block text-xs text-muted">Type</label>
+            <select
+              name="kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as typeof kind)}
               className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-            />
+            >
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              {isNew && <option value="balance">Today&rsquo;s balance</option>}
+            </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {isBalance ? (
             <div>
-              <label className="mb-1 block text-xs text-muted">Type</label>
-              <select
-                name="kind"
-                defaultValue={tx && tx.amount >= 0 ? "income" : "expense"}
-                className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted">Amount (€)</label>
+              <label className="mb-1 block text-xs text-muted">
+                Current balance (€)
+              </label>
               <input
-                name="amount"
+                name="balance_amount"
                 type="number"
                 step="0.01"
-                min="0.01"
-                defaultValue={tx ? Math.abs(tx.amount) : undefined}
+                defaultValue={currentBalance}
                 required
+                autoFocus
                 className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
               />
             </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted">Date</label>
-            <input
-              name="date"
-              type="date"
-              defaultValue={tx?.date ?? todayISO()}
-              required
-              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="on_hold"
-              defaultChecked={tx?.status === "on_hold"}
-              className="h-4 w-4 accent-accent"
-            />
-            Put this aside for now (won&rsquo;t count toward the forecast)
-          </label>
+          ) : (
+            <>
+              <div>
+                <label className="mb-1 block text-xs text-muted">Date</label>
+                <input
+                  name="date"
+                  type="date"
+                  defaultValue={tx?.date ?? todayISO()}
+                  required
+                  className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted">Description</label>
+                <input
+                  name="description"
+                  defaultValue={tx?.merchant ?? ""}
+                  required
+                  className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted">Amount (€)</label>
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  defaultValue={tx ? Math.abs(tx.amount) : undefined}
+                  required
+                  className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="on_hold"
+                  defaultChecked={tx?.status === "on_hold"}
+                  className="h-4 w-4 accent-accent"
+                />
+                Put this aside for now (won&rsquo;t count toward the forecast)
+              </label>
+            </>
+          )}
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button
@@ -1087,7 +1045,7 @@ function TransactionFormModal({
               disabled={pending}
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
-              {pending ? "Saving…" : "Save"}
+              {pending ? "Saving…" : isBalance ? "Next" : "Save"}
             </button>
           </div>
         </form>
