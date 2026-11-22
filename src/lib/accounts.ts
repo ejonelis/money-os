@@ -15,3 +15,8 @@ export function findBillsAccount<T extends NamedAccount>(
 ) {
   return accounts?.find((a) => a.id !== excludeId && /bills/i.test(a.name));
 }
+
+// The main current account.
+export function findMainAccount<T extends NamedAccount>(accounts: T[] | null) {
+  return accounts?.find((a) => /main/i.test(a.name));
+}

@@ -12,6 +12,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   { area: "Home", path: "/other", note: "Pages not in the main menu", linkable: true },
   { area: "Home", path: "/dashboard", note: "Tile hub", linkable: true },
   { area: "Bills", path: "/bills-forecast", note: "Upcoming bills by day, balance reconciliation", linkable: true },
+  { area: "Bills", path: "/main-forecast", note: "Main account balance forecast", linkable: true },
   { area: "Bills", path: "/credit-card-forecast", note: "Card balance, payments from Bills, payoff estimate", linkable: true },
   { area: "Bills", path: "/bills", note: "Monthly recurring bills", linkable: true },
   { area: "Money", path: "/balances", note: "Daily balance check-ins", linkable: true },

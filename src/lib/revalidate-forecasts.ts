@@ -5,4 +5,5 @@ import { revalidatePath } from "next/cache";
 export function revalidateForecasts() {
   revalidatePath("/bills-forecast");
   revalidatePath("/credit-card-forecast");
+  revalidatePath("/main-forecast");
 }
