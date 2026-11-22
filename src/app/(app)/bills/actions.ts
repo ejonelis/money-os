@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateForecasts } from "@/lib/revalidate-forecasts";
 import { requireHouseholdId } from "@/lib/household";
 import { FREQUENCIES, type Frequency } from "@/lib/recurrence";
 
@@ -13,6 +14,7 @@ const billSchema = z.object({
   frequency: z.enum(FREQUENCIES),
   amount: z.coerce.number().positive("Amount must be greater than 0."),
   next_due_date: z.string().min(1, "Next due date is required."),
+  transfer_to_account_id: z.string().uuid().nullable(),
 });
 
 export type BillKind = "expense" | "income";
@@ -26,12 +28,13 @@ export type SavedBill = {
   amount: number;
   next_due_date: string;
   active: boolean;
+  transfer_to_account_id: string | null;
 };
 
 export type BillFormState = { error?: string; bill?: SavedBill } | undefined;
 
 const BILL_COLUMNS =
-  "id, description, account_id, kind, frequency, amount, next_due_date, active";
+  "id, description, account_id, kind, frequency, amount, next_due_date, active, transfer_to_account_id";
 
 function parseForm(formData: FormData) {
   return billSchema.safeParse({
@@ -41,6 +44,7 @@ function parseForm(formData: FormData) {
     frequency: formData.get("frequency"),
     amount: formData.get("amount"),
     next_due_date: formData.get("next_due_date"),
+    transfer_to_account_id: formData.get("transfer_to_account_id") || null,
   });
 }
 
@@ -67,7 +71,7 @@ export async function createBill(
   }
 
   revalidatePath("/bills");
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   return { bill: data as SavedBill };
 }
 
@@ -103,7 +107,7 @@ export async function updateBill(
     .eq("status", "planned");
 
   revalidatePath("/bills");
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   return { bill: data as SavedBill };
 }
 
@@ -111,7 +115,7 @@ export async function setBillActive(id: string, active: boolean) {
   const supabase = await createClient();
   await supabase.from("recurring_rules").update({ active }).eq("id", id);
   revalidatePath("/bills");
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 export async function deleteBill(id: string) {
@@ -125,5 +129,5 @@ export async function deleteBill(id: string) {
     .eq("status", "planned");
   await supabase.from("recurring_rules").delete().eq("id", id);
   revalidatePath("/bills");
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }

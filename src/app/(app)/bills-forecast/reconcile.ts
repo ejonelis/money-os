@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateForecasts } from "@/lib/revalidate-forecasts";
 import { requireHouseholdId } from "@/lib/household";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -86,7 +87,7 @@ export async function reconcileBalance(
     return { error: error?.message ?? "Could not save balance." };
   }
 
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   revalidatePath("/balances");
   revalidatePath("/accounts");
   return data as { balance: number; as_of_date: string };

@@ -635,6 +635,26 @@ function BillFormModal({
               ))}
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted">
+              Pays into account (optional)
+            </label>
+            <select
+              name="transfer_to_account_id"
+              defaultValue={bill?.transfer_to_account_id ?? ""}
+              className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+            >
+              <option value="">— None —</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              For card payments: shows as a payment on that account&rsquo;s forecast.
+            </p>
+          </div>
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button

@@ -16,6 +16,7 @@ import {
   deleteTransaction,
   pauseBillFromForecast,
   removeBillEntirely,
+  setCreditLimit,
   setTransactionStatus,
   updateTransaction,
   type SavedTransaction,
@@ -66,13 +67,29 @@ function formatDateShort(iso: string) {
   });
 }
 
+const HORIZON_DAYS = 90;
+
+function formatPayoff(days: number | null, owed: number) {
+  if (owed <= 0) return "Nothing owed";
+  if (days === null) return "Not at this pace";
+  if (days > 3650) return "More than 10 years";
+  const d = new Date(Date.now() + days * 86_400_000);
+  return `~${d.toLocaleDateString("en-IE", { month: "short", year: "numeric" })}`;
+}
+
 export function ForecastClient({
+  variant = "bills",
+  title = "Bills Forecast",
+  creditLimit = null,
   selectedAccountId,
   startingBalance,
   startingBalanceDate,
   initialTransactions,
   existingCategories,
 }: {
+  variant?: "bills" | "card";
+  title?: string;
+  creditLimit?: number | null;
   selectedAccountId: string;
   startingBalance: number;
   startingBalanceDate: string | null;
@@ -92,6 +109,8 @@ export function ForecastClient({
     | null
   >(null);
   const [pendingNewBalance, setPendingNewBalance] = useState<number | null>(null);
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [limitInput, setLimitInput] = useState("");
   const [rowActionTx, setRowActionTx] = useState<SavedTransaction | null>(null);
   const [isPending, startTransition] = useTransition();
   const today = todayISO();
@@ -129,7 +148,32 @@ export function ForecastClient({
   }, [planned, currentBalance]);
 
   const endingBalance = rows.length > 0 ? rows[rows.length - 1].balance : currentBalance;
-  const firstNegative = rows.find((r) => r.balance < 0);
+  const isCard = variant === "card";
+  // Bills: trouble is going below zero. Card: balance is what's owed
+  // (negative), and trouble is owing more than the credit limit.
+  const isBad = (balance: number) =>
+    isCard ? creditLimit !== null && -balance > creditLimit : balance < 0;
+  const firstNegative = rows.find((r) => isBad(r.balance));
+
+  const cardSummary = useMemo(() => {
+    if (!isCard) return null;
+    const owed = Math.max(0, -currentBalance);
+    const payments = rows.filter((r) => r.readOnly).reduce((s, r) => s + r.amount, 0);
+    const net = rows.reduce((s, r) => s + r.amount, 0);
+    // Average pace over the forecast window, extrapolated until it's repaid.
+    const daysToClear = (perWindow: number) =>
+      perWindow > 0 && owed > 0
+        ? Math.ceil(owed / (perWindow / HORIZON_DAYS))
+        : null;
+    return {
+      owed,
+      owedIn90: Math.max(0, -endingBalance),
+      available: creditLimit !== null ? creditLimit - owed : null,
+      perWeek: payments / (HORIZON_DAYS / 7),
+      payoffPaymentsOnly: daysToClear(payments),
+      payoffWithPlanned: daysToClear(net),
+    };
+  }, [isCard, rows, currentBalance, endingBalance, creditLimit]);
 
   // Mobile card view: same rows, grouped into consecutive same-day runs so
   // the date only needs to appear once per day instead of on every row.
@@ -249,7 +293,7 @@ export function ForecastClient({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Bills Forecast</h1>
+        <h1 className="text-2xl font-semibold">{title}</h1>
         <button
           onClick={() => setEditingTx("new")}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
@@ -275,14 +319,103 @@ export function ForecastClient({
         </div>
         {firstNegative ? (
           <div className="min-w-0 flex-1 truncate rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-500 sm:px-4 sm:text-sm">
-            ⚠️ Red on {formatDate(firstNegative.date)}
+            {isCard ? "⚠️ Over limit on " : "⚠️ Red on "}
+            {formatDate(firstNegative.date)}
           </div>
-        ) : (
+        ) : isCard && creditLimit === null ? null : (
           <div className="min-w-0 flex-1 truncate rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 sm:px-4 sm:text-sm dark:text-emerald-400">
-            ✅ Clear for 90 days
+            {isCard ? "✅ Under limit for 90 days" : "✅ Clear for 90 days"}
           </div>
         )}
       </div>
+
+      {cardSummary && (
+        <div className="space-y-3 rounded-lg border border-hairline p-4 shadow-card">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted">Owed now</p>
+              <p className="text-lg font-medium tabular-nums">
+                {currency.format(cardSummary.owed)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">Owed in 90 days</p>
+              <p className="text-lg font-medium tabular-nums">
+                {currency.format(cardSummary.owedIn90)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">Paid per week</p>
+              <p className="text-lg font-medium tabular-nums">
+                {currency.format(cardSummary.perWeek)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">Available</p>
+              <p className="text-lg font-medium tabular-nums">
+                {cardSummary.available !== null
+                  ? currency.format(cardSummary.available)
+                  : "—"}
+              </p>
+              {editingLimit ? (
+                <form
+                  className="mt-1 flex items-center gap-1"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const value = limitInput.trim() === "" ? null : Number(limitInput);
+                    if (value !== null && Number.isNaN(value)) return;
+                    setEditingLimit(false);
+                    startTransition(async () => {
+                      await setCreditLimit(selectedAccountId, value);
+                      router.refresh();
+                    });
+                  }}
+                >
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    autoFocus
+                    value={limitInput}
+                    onChange={(e) => setLimitInput(e.target.value)}
+                    placeholder="Limit €"
+                    className="w-20 rounded-md border border-hairline bg-surface px-2 py-1 text-xs"
+                  />
+                  <button type="submit" className="text-xs text-accent hover:underline">
+                    Save
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => {
+                    setLimitInput(creditLimit?.toString() ?? "");
+                    setEditingLimit(true);
+                  }}
+                  className="text-xs text-muted transition-colors hover:text-accent"
+                >
+                  {creditLimit !== null
+                    ? `Limit ${currency.format(creditLimit)} · edit`
+                    : "Set limit"}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1 border-t border-hairline pt-3 text-sm">
+            <p className="flex justify-between gap-4">
+              <span className="text-muted">Paid off at this rate, no new spending</span>
+              <span className="font-medium">
+                {formatPayoff(cardSummary.payoffPaymentsOnly, cardSummary.owed)}
+              </span>
+            </p>
+            <p className="flex justify-between gap-4">
+              <span className="text-muted">Paid off including planned bills</span>
+              <span className="font-medium">
+                {formatPayoff(cardSummary.payoffWithPlanned, cardSummary.owed)}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
 
       {view === "list" ? (
       <>
@@ -308,7 +441,7 @@ export function ForecastClient({
                 return (
                   <button
                     key={tx.id}
-                    onClick={() => setRowActionTx(tx)}
+                    onClick={() => !tx.readOnly && setRowActionTx(tx)}
                     className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-surface ${
                       overdue ? "bg-amber-500/5" : ""
                     }`}
@@ -324,7 +457,7 @@ export function ForecastClient({
                       </span>
                       <span
                         className={`text-xs tabular-nums font-medium ${
-                          tx.balance < 0 ? "text-red-500" : "text-foreground/50"
+                          isBad(tx.balance) ? "text-red-500" : "text-foreground/50"
                         }`}
                       >
                         {currency.format(tx.balance)}
@@ -346,7 +479,7 @@ export function ForecastClient({
         {rows.length > 0 && (
           <div className="flex items-center justify-between rounded-lg border border-hairline shadow-card px-3 py-2 text-sm font-medium">
             <span>Ending balance</span>
-            <span className={endingBalance < 0 ? "text-red-500" : ""}>
+            <span className={isBad(endingBalance) ? "text-red-500" : ""}>
               {currency.format(endingBalance)}
             </span>
           </div>
@@ -396,12 +529,16 @@ export function ForecastClient({
                   </td>
                   <td
                     className={`px-3 py-2 text-right tabular-nums font-medium ${
-                      tx.balance < 0 ? "text-red-500" : ""
+                      isBad(tx.balance) ? "text-red-500" : ""
                     }`}
                   >
                     {currency.format(tx.balance)}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {tx.readOnly ? (
+                      <span className="text-xs text-muted">Edit in Monthly Bills</span>
+                    ) : (
+                    <>
                     <button
                       onClick={() => handleClear(tx)}
                       disabled={isPending}
@@ -421,6 +558,8 @@ export function ForecastClient({
                     >
                       Delete
                     </button>
+                    </>
+                    )}
                   </td>
                 </tr>
               );
@@ -441,7 +580,7 @@ export function ForecastClient({
                 </td>
                 <td
                   className={`px-3 py-2 text-right tabular-nums ${
-                    endingBalance < 0 ? "text-red-500" : ""
+                    isBad(endingBalance) ? "text-red-500" : ""
                   }`}
                 >
                   {currency.format(endingBalance)}
@@ -486,7 +625,7 @@ export function ForecastClient({
             entries={monthEntries}
             onSelect={(id) => {
               const tx = rows.find((r) => r.id === id);
-              if (tx) setEditingTx(tx);
+              if (tx && !tx.readOnly) setEditingTx(tx);
             }}
           />
         </div>
@@ -542,6 +681,7 @@ export function ForecastClient({
           tx={editingTx === "new" ? null : editingTx}
           accountId={selectedAccountId}
           currentBalance={currentBalance}
+          isCard={isCard}
           onClose={() => setEditingTx(null)}
           onBalanceEntered={(balance) => {
             setEditingTx(null);
@@ -872,6 +1012,7 @@ function TransactionFormModal({
   tx,
   accountId,
   currentBalance,
+  isCard,
   onClose,
   onBalanceEntered,
   onSaved,
@@ -880,6 +1021,7 @@ function TransactionFormModal({
   tx: SavedTransaction | null;
   accountId: string;
   currentBalance: number;
+  isCard: boolean;
   onClose: () => void;
   onBalanceEntered: (balance: number) => void;
   onSaved: (tx: SavedTransaction) => void;
@@ -961,15 +1103,15 @@ function TransactionFormModal({
               onChange={(e) => setKind(e.target.value as typeof kind)}
               className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
             >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
+              <option value="expense">{isCard ? "Purchase" : "Expense"}</option>
+              <option value="income">{isCard ? "Payment" : "Income"}</option>
               {isNew && <option value="balance">Today&rsquo;s balance</option>}
             </select>
           </div>
           {isBalance ? (
             <div>
               <label className="mb-1 block text-xs text-muted">
-                Current balance (€)
+                {isCard ? "Current balance (€, negative = owed)" : "Current balance (€)"}
               </label>
               <input
                 name="balance_amount"

@@ -53,7 +53,7 @@ export function AppNav({
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center gap-1 xl:flex">
             {NAV_LINKS.map(({ href, label, icon: Icon, color }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
@@ -124,7 +124,7 @@ export function AppNav({
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
-            className={`${iconBtn} lg:hidden`}
+            className={`${iconBtn} xl:hidden`}
           >
             {menuOpen ? (
               <X size={18} strokeWidth={1.6} />
@@ -137,7 +137,7 @@ export function AppNav({
 
       {/* Mobile menu panel */}
       {menuOpen && (
-        <div className="border-t border-hairline lg:hidden">
+        <div className="border-t border-hairline xl:hidden">
           <nav className="mx-auto flex max-w-4xl flex-col px-6 py-2">
             {NAV_LINKS.map(({ href, label, icon: Icon, color }) => (
               <Link

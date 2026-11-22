@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateForecasts } from "@/lib/revalidate-forecasts";
 import { deleteBill, setBillActive } from "../bills/actions";
 
 const txSchema = z.object({
@@ -24,6 +25,9 @@ export type SavedTransaction = {
   status: TxStatus;
   merchant: string | null;
   recurring_rule_id: string | null;
+  // Mirrored in from another account's forecast (e.g. a card payment from
+  // Bills). Shown for the running balance but edited at its source.
+  readOnly?: boolean;
 };
 
 export type TxFormState =
@@ -73,7 +77,7 @@ export async function addTransaction(
     return { error: error?.message ?? "Could not add entry." };
   }
 
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   return { transaction: data as SavedTransaction };
 }
 
@@ -117,7 +121,7 @@ export async function updateTransaction(
       .eq("status", "planned");
 
     revalidatePath("/bills");
-    revalidatePath("/bills-forecast");
+    revalidateForecasts();
     return { ruleUpdated: recurringRuleId as string };
   }
 
@@ -148,14 +152,14 @@ export async function updateTransaction(
     );
   }
 
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   return { transaction: data as SavedTransaction };
 }
 
 export async function deleteTransaction(id: string) {
   const supabase = await createClient();
   await supabase.from("transactions").delete().eq("id", id);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 // "Delete just this one" — removes the occurrence and remembers not to
@@ -173,7 +177,7 @@ export async function deleteOccurrenceOnly(
     );
   }
   await supabase.from("transactions").delete().eq("id", id);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 // "Delete all" — clears every still-planned occurrence of this bill from
@@ -186,25 +190,25 @@ export async function deleteAllFutureOccurrences(recurringRuleId: string) {
     .delete()
     .eq("recurring_rule_id", recurringRuleId)
     .eq("status", "planned");
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 export async function removeBillEntirely(recurringRuleId: string) {
   await deleteBill(recurringRuleId);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 // Keeps the bill in Monthly Bills but stops it from generating new
 // occurrences — the "just remove it from Forecast" half of the choice.
 export async function pauseBillFromForecast(recurringRuleId: string) {
   await setBillActive(recurringRuleId, false);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 export async function setTransactionStatus(id: string, status: TxStatus) {
   const supabase = await createClient();
   await supabase.from("transactions").update({ status }).eq("id", id);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
 }
 
 // Marking something cleared means it's really happened — the displayed
@@ -226,7 +230,16 @@ export async function clearTransaction(
       balance: newBalance,
     }),
   ]);
-  revalidatePath("/bills-forecast");
+  revalidateForecasts();
   revalidatePath("/balances");
 }
 
+
+export async function setCreditLimit(accountId: string, limit: number | null) {
+  const supabase = await createClient();
+  await supabase
+    .from("accounts")
+    .update({ credit_limit: limit })
+    .eq("id", accountId);
+  revalidateForecasts();
+}
