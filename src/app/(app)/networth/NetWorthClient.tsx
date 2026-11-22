@@ -139,11 +139,14 @@ export function NetWorthClient({
     });
     const balances = new Map<string, number>();
     const computed: Entry[] = [];
+    // A total is only real once every tracked account has a balance;
+    // earlier dates (only some accounts recorded) would show a false dip.
+    const tracked = new Set(sorted.map((s) => s.account_id)).size;
     for (let i = 0; i < sorted.length; i++) {
       balances.set(sorted[i].account_id, sorted[i].balance);
       const lastOfDate =
         i === sorted.length - 1 || sorted[i + 1].as_of_date !== sorted[i].as_of_date;
-      if (!lastOfDate) continue;
+      if (!lastOfDate || balances.size < tracked) continue;
       let total = 0;
       for (const v of balances.values()) total += v;
       computed.push({ date: sorted[i].as_of_date, value: total, imported: false });
