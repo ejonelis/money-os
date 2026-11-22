@@ -249,14 +249,7 @@ export function ForecastClient({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Bills Forecast</h1>
-          <p className="text-sm text-muted">
-            {currentBalanceDate
-              ? `Balance ${currency.format(currentBalance)} as of ${formatDate(currentBalanceDate)}`
-              : "No balance set yet — starting from €0.00"}
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold">Bills Forecast</h1>
         <button
           onClick={() => setEditingTx("new")}
           className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
