@@ -96,6 +96,9 @@ export default async function CreditCardForecastPage() {
       variant="card"
       title="CC Forecast"
       creditLimit={card.credit_limit}
+      paymentSourceAccountId={
+        accounts?.find((a) => a.id !== card.id && /bills/i.test(a.name))?.id ?? null
+      }
       selectedAccountId={card.id}
       startingBalance={snapshot?.balance ?? 0}
       startingBalanceDate={snapshot?.as_of_date ?? null}

@@ -23,6 +23,7 @@ import {
   type TxFormState,
 } from "./actions";
 import { reconcileBalance, type LeftoverEntry } from "./reconcile";
+import { FREQUENCIES, FREQUENCY_LABELS, type Frequency } from "@/lib/recurrence";
 import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 import { ChoiceModal } from "@/components/ChoiceModal";
 
@@ -81,6 +82,7 @@ export function ForecastClient({
   variant = "bills",
   title = "Bills Forecast",
   creditLimit = null,
+  paymentSourceAccountId = null,
   selectedAccountId,
   startingBalance,
   startingBalanceDate,
@@ -90,6 +92,7 @@ export function ForecastClient({
   variant?: "bills" | "card";
   title?: string;
   creditLimit?: number | null;
+  paymentSourceAccountId?: string | null;
   selectedAccountId: string;
   startingBalance: number;
   startingBalanceDate: string | null;
@@ -682,6 +685,7 @@ export function ForecastClient({
           accountId={selectedAccountId}
           currentBalance={currentBalance}
           isCard={isCard}
+          paymentSourceAccountId={paymentSourceAccountId}
           onClose={() => setEditingTx(null)}
           onBalanceEntered={(balance) => {
             setEditingTx(null);
@@ -1013,6 +1017,7 @@ function TransactionFormModal({
   accountId,
   currentBalance,
   isCard,
+  paymentSourceAccountId,
   onClose,
   onBalanceEntered,
   onSaved,
@@ -1022,6 +1027,7 @@ function TransactionFormModal({
   accountId: string;
   currentBalance: number;
   isCard: boolean;
+  paymentSourceAccountId: string | null;
   onClose: () => void;
   onBalanceEntered: (balance: number) => void;
   onSaved: (tx: SavedTransaction) => void;
@@ -1034,6 +1040,12 @@ function TransactionFormModal({
     tx && tx.amount >= 0 ? "income" : "expense",
   );
   const isBalance = kind === "balance";
+  const [repeat, setRepeat] = useState<"none" | Frequency>("none");
+  const repeating = repeat !== "none";
+  // On the card page a repeating Payment is paid from the Bills account
+  // into the card; anything else repeats on this account.
+  const cardPayment = isCard && kind === "income";
+  const noPaymentSource = cardPayment && !paymentSourceAccountId;
   const action = isNew ? addTransaction : updateTransaction.bind(null, tx!.id);
   const [state, formAction, pending] = useActionState<TxFormState, FormData>(
     action,
@@ -1065,6 +1077,17 @@ function TransactionFormModal({
           className="space-y-3"
         >
           <input type="hidden" name="account_id" value={accountId} />
+          {repeating && (
+            <>
+              <input type="hidden" name="rule_kind" value={cardPayment ? "expense" : kind} />
+              {cardPayment && paymentSourceAccountId && (
+                <>
+                  <input type="hidden" name="rule_account_id" value={paymentSourceAccountId} />
+                  <input type="hidden" name="transfer_to_account_id" value={accountId} />
+                </>
+              )}
+            </>
+          )}
           {isRecurring && (
             <>
               <input type="hidden" name="recurring_rule_id" value={tx!.recurring_rule_id!} />
@@ -1135,6 +1158,35 @@ function TransactionFormModal({
                   className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
                 />
               </div>
+              {isNew && (
+                <div>
+                  <label className="mb-1 block text-xs text-muted">Repeats</label>
+                  <select
+                    name="repeat"
+                    value={noPaymentSource ? "none" : repeat}
+                    onChange={(e) => setRepeat(e.target.value as typeof repeat)}
+                    disabled={noPaymentSource}
+                    className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
+                  >
+                    <option value="none">Doesn&rsquo;t repeat</option>
+                    {FREQUENCIES.map((f) => (
+                      <option key={f} value={f}>
+                        {FREQUENCY_LABELS[f]}
+                      </option>
+                    ))}
+                  </select>
+                  {cardPayment && repeating && !noPaymentSource && (
+                    <p className="mt-1 text-xs text-muted">
+                      Paid from your Bills account and shown here as a payment.
+                    </p>
+                  )}
+                  {noPaymentSource && (
+                    <p className="mt-1 text-xs text-muted">
+                      Repeating card payments need an account with &ldquo;bills&rdquo; in its name.
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="mb-1 block text-xs text-muted">Description</label>
                 <input
@@ -1156,6 +1208,7 @@ function TransactionFormModal({
                   className="w-full rounded-md border border-hairline bg-surface px-3 py-1.5 text-sm outline-none"
                 />
               </div>
+              {!repeating && (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -1165,6 +1218,7 @@ function TransactionFormModal({
                 />
                 Put this aside for now (won&rsquo;t count toward the forecast)
               </label>
+              )}
             </>
           )}
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}

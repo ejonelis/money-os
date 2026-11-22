@@ -4,6 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { revalidateForecasts } from "@/lib/revalidate-forecasts";
+import { requireHouseholdId } from "@/lib/household";
+import { FREQUENCIES, type Frequency } from "@/lib/recurrence";
 import { deleteBill, setBillActive } from "../bills/actions";
 
 const txSchema = z.object({
@@ -58,6 +60,40 @@ export async function addTransaction(
   }
 
   const supabase = await createClient();
+
+  // "Repeats" — create a recurring bill instead of a one-off entry. The
+  // forecast then generates its planned occurrences on the next load, and
+  // it shows up in Monthly Bills like any other bill.
+  const repeat = formData.get("repeat");
+  if (typeof repeat === "string" && repeat !== "none") {
+    if (!FREQUENCIES.includes(repeat as Frequency)) {
+      return { error: "Choose how often this repeats." };
+    }
+    const householdId = await requireHouseholdId();
+    const ruleKind = formData.get("rule_kind") === "income" ? "income" : "expense";
+    const { data: rule, error: ruleError } = await supabase
+      .from("recurring_rules")
+      .insert({
+        household_id: householdId,
+        account_id: formData.get("rule_account_id") || parsed.data.account_id,
+        description: parsed.data.description,
+        kind: ruleKind,
+        frequency: repeat,
+        amount: parsed.data.amount,
+        next_due_date: parsed.data.date,
+        transfer_to_account_id: formData.get("transfer_to_account_id") || null,
+      })
+      .select("id")
+      .single();
+    if (ruleError || !rule) {
+      return { error: ruleError?.message ?? "Could not create the repeating entry." };
+    }
+    revalidateForecasts();
+    revalidatePath("/bills");
+    // Reuses the "rule changed" path: closes the popup and refreshes.
+    return { ruleUpdated: rule.id };
+  }
+
   const signedAmount =
     parsed.data.kind === "income" ? parsed.data.amount : -parsed.data.amount;
 
