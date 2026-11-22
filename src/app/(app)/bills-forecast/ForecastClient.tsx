@@ -26,6 +26,7 @@ import { reconcileBalance, type LeftoverEntry } from "./reconcile";
 import { FREQUENCIES, FREQUENCY_LABELS, type Frequency } from "@/lib/recurrence";
 import { CalendarGrid, type CalendarEntry } from "@/components/CalendarGrid";
 import { ChoiceModal } from "@/components/ChoiceModal";
+import { BalanceChart, type ChartPoint } from "@/components/BalanceChart";
 
 const currency = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -179,6 +180,15 @@ export function ForecastClient({
       payoffWithPlanned: daysToClear(net),
     };
   }, [isCard, rows, currentBalance, endingBalance, creditLimit]);
+
+  // Card: chart what's owed (so repaying brings the line down to zero).
+  const chartPoints = useMemo<ChartPoint[]>(() => {
+    const val = (b: number) => (isCard ? -b : b);
+    return [
+      { date: today, value: val(currentBalance), label: "Today" },
+      ...rows.map((r) => ({ date: r.date, value: val(r.balance), label: r.merchant })),
+    ];
+  }, [isCard, rows, currentBalance, today]);
 
   // Mobile card view: same rows, grouped into consecutive same-day runs so
   // the date only needs to appear once per day instead of on every row.
@@ -635,6 +645,18 @@ export function ForecastClient({
           />
         </div>
       )}
+
+      <BalanceChart
+        points={chartPoints}
+        valueLabel={isCard ? "Owed over time" : "Balance over time"}
+        reference={
+          isCard
+            ? creditLimit !== null
+              ? { value: creditLimit, label: "Credit limit" }
+              : undefined
+            : { value: 0, label: "Zero" }
+        }
+      />
 
       {onHold.length > 0 && (
         <div className="space-y-2">
