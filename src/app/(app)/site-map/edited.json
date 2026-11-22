@@ -2,6 +2,7 @@
   "/": "2026-08-03",
   "/dashboard": "2026-11-21",
   "/bills-forecast": "2026-11-22",
+  "/credit-card-forecast": "2026-11-22",
   "/bills": "2026-11-22",
   "/balances": "2026-11-17",
   "/accounts": "2026-11-17",
@@ -9,7 +10,7 @@
   "/debts": "2026-11-17",
   "/networth": "2026-11-17",
   "/account/set-password": "2026-11-17",
-  "/site-map": "2026-11-21",
+  "/site-map": "2026-11-22",
   "/login": "2026-11-17",
   "/auth/callback": "2026-08-03"
 }
