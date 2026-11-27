@@ -15,6 +15,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   { area: "Bills", path: "/main-forecast", note: "Main account balance forecast", linkable: true },
   { area: "Bills", path: "/credit-card-forecast", note: "Card balance, payments from Bills, payoff estimate", linkable: true },
   { area: "Bills", path: "/bills", note: "Monthly recurring bills", linkable: true },
+  { area: "Money", path: "/spending", note: "Income vs expenses log by month, from cleared entries", linkable: true },
   { area: "Money", path: "/balances", note: "Daily balance check-ins", linkable: true },
   { area: "Money", path: "/accounts", note: "Accounts hub", linkable: true },
   { area: "Money", path: "/accounts/[id]", note: "Account ledger and payments" },

@@ -24,7 +24,7 @@ export async function materializePlannedTransactions(
 
   const { data: rules } = await supabase
     .from("recurring_rules")
-    .select("id, description, kind, frequency, amount, next_due_date")
+    .select("id, description, kind, frequency, amount, next_due_date, category_id")
     .eq("account_id", accountId)
     .eq("active", true);
 
@@ -62,6 +62,7 @@ export async function materializePlannedTransactions(
     status: "planned";
     recurring_rule_id: string;
     merchant: string;
+    category_id: string | null;
   }[] = [];
 
   for (const rule of rules) {
@@ -77,6 +78,7 @@ export async function materializePlannedTransactions(
         status: "planned",
         recurring_rule_id: rule.id,
         merchant: rule.description,
+        category_id: rule.category_id ?? null,
       });
     }
   }

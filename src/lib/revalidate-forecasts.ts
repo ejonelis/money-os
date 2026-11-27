@@ -6,4 +6,5 @@ export function revalidateForecasts() {
   revalidatePath("/bills-forecast");
   revalidatePath("/credit-card-forecast");
   revalidatePath("/main-forecast");
+  revalidatePath("/spending");
 }

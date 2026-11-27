@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   CreditCard,
   Receipt,
+  PiggyBank,
   Scale,
   TrendingDown,
   TrendingUp,
@@ -47,6 +48,7 @@ export const NAV_LINKS: NavLink[] = [
 
 // Pages that aren't in the top menu; they live on the Other page.
 export const OTHER_LINKS: NavLink[] = [
+  { href: "/spending", label: "Spending", icon: PiggyBank, color: APPLE_COLORS.pink },
   { href: "/debts", label: "Debts", icon: TrendingDown, color: APPLE_COLORS.red },
   { href: "/accounts", label: "Accounts", icon: Landmark, color: APPLE_COLORS.teal },
   { href: "/balances", label: "Balances", icon: Scale, color: APPLE_COLORS.indigo },
