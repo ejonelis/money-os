@@ -14,11 +14,12 @@ export async function materializePlannedTransactions(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
   accountId: string,
+  horizonDays: number = FORECAST_HORIZON_DAYS,
 ) {
   const today = new Date();
   const fromISO = today.toISOString().slice(0, 10);
   const through = new Date(today);
-  through.setDate(through.getDate() + FORECAST_HORIZON_DAYS);
+  through.setDate(through.getDate() + horizonDays);
   const throughISO = through.toISOString().slice(0, 10);
 
   const { data: rules } = await supabase

@@ -30,6 +30,10 @@ export type SavedTransaction = {
   // Mirrored in from another account's forecast (e.g. a card payment from
   // Bills). Shown for the running balance but edited at its source.
   readOnly?: boolean;
+  // For mirrored card payments: the account the money leaves from.
+  sourceAccountId?: string;
+  // Not stored yet (beyond the paying account's 90 days): can't be marked paid.
+  futureOnly?: boolean;
 };
 
 export type TxFormState =
@@ -278,6 +282,50 @@ export async function clearTransaction(
   revalidatePath("/balances");
 }
 
+// Marks a card payment (entered on another account, e.g. Bills) as paid:
+// the source entry becomes actual, the card balance rises by the payment,
+// and the paying account's balance drops by the same amount.
+export async function clearCardPayment(
+  sourceTxId: string,
+  cardAccountId: string,
+  newCardBalance: number,
+) {
+  const supabase = await createClient();
+  const asOfDate = new Date().toISOString().slice(0, 10);
+
+  const { data: tx } = await supabase
+    .from("transactions")
+    .select("account_id, amount")
+    .eq("id", sourceTxId)
+    .single();
+  if (!tx) return;
+
+  await supabase.from("transactions").update({ status: "actual" }).eq("id", sourceTxId);
+  await supabase.from("balance_snapshots").insert({
+    account_id: cardAccountId,
+    as_of_date: asOfDate,
+    balance: newCardBalance,
+  });
+
+  const { data: src } = await supabase
+    .from("balance_snapshots")
+    .select("balance")
+    .eq("account_id", tx.account_id)
+    .order("as_of_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (src) {
+    await supabase.from("balance_snapshots").insert({
+      account_id: tx.account_id,
+      as_of_date: asOfDate,
+      balance: src.balance - Math.abs(tx.amount),
+    });
+  }
+
+  revalidateForecasts();
+  revalidatePath("/balances");
+}
 
 export async function setCreditLimit(accountId: string, limit: number | null) {
   const supabase = await createClient();

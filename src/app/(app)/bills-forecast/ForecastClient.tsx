@@ -11,6 +11,7 @@ import {
 import {
   addTransaction,
   clearTransaction,
+  clearCardPayment,
   deleteAllFutureOccurrences,
   deleteOccurrenceOnly,
   deleteTransaction,
@@ -174,22 +175,39 @@ export function ForecastClient({
   const cardSummary = useMemo(() => {
     if (!isCard) return null;
     const owed = Math.max(0, -currentBalance);
-    const payments = rows.filter((r) => r.readOnly).reduce((s, r) => s + r.amount, 0);
-    const net = rows.reduce((s, r) => s + r.amount, 0);
-    // Average pace over the forecast window, extrapolated until it's repaid.
-    const daysToClear = (perWindow: number) =>
-      perWindow > 0 && owed > 0
-        ? Math.ceil(owed / (perWindow / HORIZON_DAYS))
-        : null;
+    const cutoff = new Date(new Date(today).getTime() + HORIZON_DAYS * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const within = rows.filter((r) => r.date <= cutoff);
+    const payments = within.filter((r) => r.readOnly).reduce((s, r) => s + r.amount, 0);
+    const owedIn90 =
+      within.length > 0 ? Math.max(0, -within[within.length - 1].balance) : owed;
+    // Forecast now runs until the card is cleared, so the payoff date is
+    // just the first row where nothing is owed any more.
+    const clearedRow = (list: typeof rows, start: number) => {
+      if (start <= 0) return null;
+      return list.find((r) => r.balance >= 0) ?? null;
+    };
+    const daysUntil = (iso: string) =>
+      Math.max(0, Math.ceil((new Date(iso).getTime() - new Date(today).getTime()) / 86_400_000));
+    // Payments only: replay with the purchases stripped out.
+    let running = currentBalance;
+    const paymentsOnlyRow = rows
+      .filter((r) => r.readOnly)
+      .find((r) => {
+        running += r.amount;
+        return running >= 0;
+      });
+    const withPlannedRow = clearedRow(rows, currentBalance);
     return {
       owed,
-      owedIn90: Math.max(0, -endingBalance),
+      owedIn90,
       available: creditLimit !== null ? creditLimit - owed : null,
       perWeek: payments / (HORIZON_DAYS / 7),
-      payoffPaymentsOnly: daysToClear(payments),
-      payoffWithPlanned: daysToClear(net),
+      payoffPaymentsOnly: owed > 0 && paymentsOnlyRow ? daysUntil(paymentsOnlyRow.date) : null,
+      payoffWithPlanned: owed > 0 && withPlannedRow ? daysUntil(withPlannedRow.date) : null,
     };
-  }, [isCard, rows, currentBalance, endingBalance, creditLimit]);
+  }, [isCard, rows, currentBalance, creditLimit, today]);
 
   // Card: chart what's owed (so repaying brings the line down to zero).
   // Recorded balances give the history; planned entries the forecast.
@@ -313,7 +331,11 @@ export function ForecastClient({
     setCurrentBalance(newBalance);
     setCurrentBalanceDate(today);
     startTransition(() => {
-      clearTransaction(tx.id, selectedAccountId, newBalance);
+      if (tx.readOnly) {
+        clearCardPayment(tx.id.replace(/^payment-/, ""), selectedAccountId, newBalance);
+      } else {
+        clearTransaction(tx.id, selectedAccountId, newBalance);
+      }
     });
   }
 
@@ -360,7 +382,7 @@ export function ForecastClient({
           </div>
         ) : isCard && creditLimit === null ? null : (
           <div className="min-w-0 flex-1 truncate rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 sm:px-4 sm:text-sm dark:text-emerald-400">
-            {isCard ? "✅ Under limit for 90 days" : "✅ Clear for 90 days"}
+            {isCard ? "✅ Under limit all the way to payoff" : "✅ Clear for 90 days"}
           </div>
         )}
       </div>
@@ -477,7 +499,7 @@ export function ForecastClient({
                 return (
                   <button
                     key={tx.id}
-                    onClick={() => !tx.readOnly && setRowActionTx(tx)}
+                    onClick={() => !tx.futureOnly && setRowActionTx(tx)}
                     className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors active:bg-surface ${
                       overdue ? "bg-amber-500/5" : ""
                     }`}
@@ -572,7 +594,18 @@ export function ForecastClient({
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     {tx.readOnly ? (
-                      <span className="text-xs text-muted">Edit in Monthly Bills</span>
+                      <>
+                        {!tx.futureOnly && (
+                          <button
+                            onClick={() => handleClear(tx)}
+                            disabled={isPending}
+                            className="mr-3 text-xs text-emerald-600 transition-colors hover:text-accent dark:text-emerald-400"
+                          >
+                            Mark paid
+                          </button>
+                        )}
+                        <span className="text-xs text-muted">Edit in Monthly Bills</span>
+                      </>
                     ) : (
                     <>
                     <button
@@ -782,7 +815,15 @@ export function ForecastClient({
         <ChoiceModal
           title={rowActionTx.merchant ?? "Entry"}
           message={`${formatDate(rowActionTx.date)} · ${formatSignedAmount(rowActionTx.amount)}`}
-          options={[
+          options={rowActionTx.readOnly ? [
+            {
+              label: "Mark paid",
+              onClick: () => {
+                handleClear(rowActionTx);
+                setRowActionTx(null);
+              },
+            },
+          ] : [
             {
               label: "Mark cleared",
               onClick: () => {
